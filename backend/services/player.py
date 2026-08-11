@@ -12,11 +12,9 @@ def create_player(db: Session, player: PlayerCreate):
     qr_code=str(uuid.uuid4())
     db_player = Player(
         name=player.name,
-        qr_code=qr_code
-        wins=0,
-        losses=0,
-        rating=1200,
+        qr_code=qr_code    
     )
+
 
     db.add(db_player)
     db.commit()

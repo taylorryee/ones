@@ -9,7 +9,7 @@ class Player(Base):
     __tablename__ = "players"
     id = Column(Integer,primary_key=True)
     name = Column(String,nullable=False)
-    wins = Column(Integer)
-    losses = Column(Integer)
-    rating = Column(Integer)
+    wins = Column(Integer,nullable=False,default=0)
+    losses = Column(Integer,nullable=False,default=0)
+    rating = Column(Integer,nullable=False,default=1200)
     qr_code = Column(String,unique=True,nullable=False,index=True)
