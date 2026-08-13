@@ -7,6 +7,10 @@ import uuid
 
 
 
+def get_players(db: Session):
+    return db.query(Player).all()
+
+
 
 def create_player(db: Session, player: PlayerCreate):
     qr_code=str(uuid.uuid4())

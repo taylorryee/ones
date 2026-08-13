@@ -1,15 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from schemas.player import PlayerCreate, PlayerRead
+from schemas.player import PlayerCreate
 from database import get_db
 from services import player as service
 router = APIRouter(prefix="/players", tags=["players"])
 
-@router.get("/", response_model=list[PlayerRead])
-def get_players(db:Session=Depends(get_db)):
-    players = service.get_players(db)
-    
-    return players
+@router.get("/")
+def get_players():
+    return []
 
 
 @router.post("/create")
