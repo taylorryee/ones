@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 
 from models.player import Player
 from schemas.player import PlayerCreate
-
 import uuid
 
 

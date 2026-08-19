@@ -2,7 +2,6 @@ from pydantic import BaseModel
 
 
 class MatchCreate(BaseModel):
-    playerOne_id: int
     opp_qr: str
 
 
@@ -10,11 +9,6 @@ class MatchSubmit(BaseModel):
     winner_id: int
     playerOne_score: int
     playerTwo_score: int
-    submitted_by_id: int
-
-
-class MatchConfirm(BaseModel):
-    confirmed_by_id: int
 
 
 class MatchRead(BaseModel):

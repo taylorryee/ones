@@ -5,15 +5,11 @@ from sqlalchemy.orm import Session
 
 from models.match import Match
 from models.player import Player
-from schemas.match import MatchCreate, MatchSubmit, MatchConfirm
+from schemas.match import MatchCreate, MatchSubmit
 
 
-def create_match(db: Session, match: MatchCreate):
-    player_one = db.query(Player).filter(Player.id == match.playerOne_id).first()
+def create_match(db: Session, match: MatchCreate, player_one: Player):
     player_two = db.query(Player).filter(Player.qr_code == match.opp_qr).first()
-
-    if player_one is None:
-        raise HTTPException(status_code=404, detail="Player one not found")
 
     if player_two is None:
         raise HTTPException(status_code=404, detail="Opponent not found")
@@ -43,7 +39,7 @@ def get_match(db: Session, match_id: int):
     return db_match
 
 
-def submit_match_result(db: Session, match_id: int, result: MatchSubmit):
+def submit_match_result(db: Session, match_id: int, result: MatchSubmit, current_user: Player):
     db_match = get_match(db, match_id)
 
     if db_match.status != "pending":
@@ -54,13 +50,13 @@ def submit_match_result(db: Session, match_id: int, result: MatchSubmit):
     if result.winner_id not in player_ids:
         raise HTTPException(status_code=400, detail="Winner must be in the match")
 
-    if result.submitted_by_id not in player_ids:
+    if current_user.id not in player_ids:
         raise HTTPException(status_code=400, detail="Submitter must be in the match")
 
     db_match.winner_id = result.winner_id
     db_match.playerOne_score = result.playerOne_score
     db_match.playerTwo_score = result.playerTwo_score
-    db_match.submitted_by_id = result.submitted_by_id
+    db_match.submitted_by_id = current_user.id
     db_match.status = "submitted"
     db_match.submitted_at = datetime.now(timezone.utc)
 
@@ -70,7 +66,7 @@ def submit_match_result(db: Session, match_id: int, result: MatchSubmit):
     return db_match
 
 
-def confirm_match(db: Session, match_id: int, confirmation: MatchConfirm):
+def confirm_match(db: Session, match_id: int, current_user: Player):
     db_match = get_match(db, match_id)
 
     if db_match.status != "submitted":
@@ -78,10 +74,10 @@ def confirm_match(db: Session, match_id: int, confirmation: MatchConfirm):
 
     player_ids = {db_match.playerOne_id, db_match.playerTwo_id}
 
-    if confirmation.confirmed_by_id not in player_ids:
+    if current_user.id not in player_ids:
         raise HTTPException(status_code=400, detail="Confirmer must be in the match")
 
-    if confirmation.confirmed_by_id == db_match.submitted_by_id:
+    if current_user.id == db_match.submitted_by_id:
         raise HTTPException(status_code=400, detail="Submitter cannot confirm their own result")
 
     winner = db.query(Player).filter(Player.id == db_match.winner_id).first()
@@ -91,7 +87,7 @@ def confirm_match(db: Session, match_id: int, confirmation: MatchConfirm):
     winner.wins += 1
     loser.losses += 1
 
-    db_match.confirmed_by_id = confirmation.confirmed_by_id
+    db_match.confirmed_by_id = current_user.id
     db_match.status = "confirmed"
     db_match.confirmed_at = datetime.now(timezone.utc)
 

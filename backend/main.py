@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from routes.auth import router as authRouter
 from routes.match import router as matchRouter
 from routes.player import router as playerRouter
 
@@ -16,6 +17,6 @@ app.add_middleware(
 )
 
 
+app.include_router(authRouter)
 app.include_router(playerRouter)
 app.include_router(matchRouter)
-
