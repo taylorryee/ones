@@ -1,15 +1,19 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
+import { api } from '@/api';
 import { getCurrentUser, logout, type UserProfile } from '@/services/auth';
 
 const qrPattern = [
@@ -25,8 +29,12 @@ const qrPattern = [
 ];
 
 export default function ProfileScreen() {
+  const scrollViewRef = useRef<ScrollView>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [opponentQr, setOpponentQr] = useState('');
+  const [matchMessage, setMatchMessage] = useState('');
+  const [isCreatingMatch, setIsCreatingMatch] = useState(false);
 
   useEffect(() => {
     loadCurrentUser();
@@ -49,6 +57,41 @@ export default function ProfileScreen() {
     router.replace('/login');
   }
 
+  async function handleCreateMatch() {
+    if (!opponentQr.trim()) {
+      setMatchMessage('Enter an opponent QR code.');
+      return;
+    }
+
+    try {
+      setIsCreatingMatch(true);
+      setMatchMessage('');
+
+      const response = await api.post('/matches/challenge', {
+        opp_qr: opponentQr.trim(),
+      });
+
+      setMatchMessage(`Created match #${response.data.id}`);
+      setOpponentQr('');
+      router.push({
+        pathname: '/match/[id]',
+        params: {
+          id: String(response.data.id),
+        },
+      });
+    } catch {
+      setMatchMessage('Could not create match.');
+    } finally {
+      setIsCreatingMatch(false);
+    }
+  }
+
+  function scrollToMatchInput() {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 250);
+  }
+
   if (isLoading || !profile) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -62,63 +105,95 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>ONES PROFILE</Text>
-          <Text style={styles.title}>Ready for your next match?</Text>
-          <Text style={styles.subtitle}>Scan this code, start a game, and build your rank.</Text>
-        </View>
-
-        <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{profile.name.charAt(0).toUpperCase()}</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardAvoidingView}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled">
+          <View style={styles.header}>
+            <Text style={styles.eyebrow}>ONES balls PROFILE</Text>
+            <Text style={styles.title}>Ready for your next match?</Text>
+            <Text style={styles.subtitle}>Scan this code, start a game, and build your rank.</Text>
           </View>
 
-          <View style={styles.profileInfo}>
-            <Text style={styles.name}>{profile.name}</Text>
-            <Text style={styles.rating}>Rating {profile.rating}</Text>
-          </View>
-        </View>
+          <View style={styles.profileCard}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{profile.name.charAt(0).toUpperCase()}</Text>
+            </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{profile.wins}</Text>
-            <Text style={styles.statLabel}>Wins</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{profile.losses}</Text>
-            <Text style={styles.statLabel}>Losses</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{winRate}</Text>
-            <Text style={styles.statLabel}>Win Rate</Text>
-          </View>
-        </View>
-
-        <View style={styles.qrCard}>
-          <Text style={styles.sectionTitle}>Your QR Code</Text>
-          <Text style={styles.sectionText}>Let another player scan this to challenge you.</Text>
-
-          <View style={styles.qrCode}>
-            {qrPattern.map((row, rowIndex) => (
-              <View key={`row-${rowIndex}`} style={styles.qrRow}>
-                {row.map((cell, cellIndex) => (
-                  <View
-                    key={`cell-${rowIndex}-${cellIndex}`}
-                    style={[styles.qrCell, cell === 1 && styles.qrCellFilled]}
-                  />
-                ))}
-              </View>
-            ))}
+            <View style={styles.profileInfo}>
+              <Text style={styles.name}>{profile.name}</Text>
+              <Text style={styles.rating}>Rating {profile.rating}</Text>
+            </View>
           </View>
 
-          <Text style={styles.qrValue}>{profile.qr_code}</Text>
-        </View>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{profile.wins}</Text>
+              <Text style={styles.statLabel}>Wins</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{profile.losses}</Text>
+              <Text style={styles.statLabel}>Losses</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{winRate}</Text>
+              <Text style={styles.statLabel}>Win Rate</Text>
+            </View>
+          </View>
 
-        <Pressable onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutButtonText}>Log Out</Text>
-        </Pressable>
-      </ScrollView>
+          <View style={styles.qrCard}>
+            <Text style={styles.sectionTitle}>Your QR Code</Text>
+            <Text style={styles.sectionText}>Let another player scan this to challenge you.</Text>
+
+            <View style={styles.qrCode}>
+              {qrPattern.map((row, rowIndex) => (
+                <View key={`row-${rowIndex}`} style={styles.qrRow}>
+                  {row.map((cell, cellIndex) => (
+                    <View
+                      key={`cell-${rowIndex}-${cellIndex}`}
+                      style={[styles.qrCell, cell === 1 && styles.qrCellFilled]}
+                    />
+                  ))}
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.qrValue}>{profile.qr_code}</Text>
+          </View>
+
+          <View style={styles.testCard}>
+            <Text style={styles.sectionTitle}>Test Create Match</Text>
+            <Text style={styles.sectionText}>Paste another player&apos;s QR code to test challenge creation.</Text>
+
+            <TextInput
+              autoCapitalize="none"
+              onChangeText={setOpponentQr}
+              onFocus={scrollToMatchInput}
+              placeholder="Opponent QR code"
+              style={styles.input}
+              value={opponentQr}
+            />
+
+            {matchMessage ? <Text style={styles.testMessage}>{matchMessage}</Text> : null}
+
+            <Pressable
+              disabled={isCreatingMatch}
+              onPress={handleCreateMatch}
+              style={[styles.primaryButton, isCreatingMatch && styles.disabledButton]}>
+              <Text style={styles.primaryButtonText}>
+                {isCreatingMatch ? 'Creating...' : 'Create Test Match'}
+              </Text>
+            </Pressable>
+          </View>
+
+          <Pressable onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -127,6 +202,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   centered: {
     alignItems: 'center',
@@ -266,6 +344,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  testCard: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    padding: 20,
+  },
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: '#111827',
+    fontSize: 16,
+    minHeight: 52,
+    paddingHorizontal: 14,
+  },
+  testMessage: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   logoutButton: {
     alignItems: 'center',

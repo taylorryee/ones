@@ -7,8 +7,8 @@ class MatchCreate(BaseModel):
 
 class MatchSubmit(BaseModel):
     winner_id: int
-    playerOne_score: int
-    playerTwo_score: int
+    playerOne_score: int | None
+    playerTwo_score: int | None
 
 
 class MatchRead(BaseModel):
@@ -21,6 +21,7 @@ class MatchRead(BaseModel):
     status: str
     submitted_by_id: int | None
     confirmed_by_id: int | None
+    
 
     model_config = {
         "from_attributes": True,

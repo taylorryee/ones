@@ -33,10 +33,11 @@ def get_match(match_id: int, db: Session = Depends(get_db)):
 def submit_match_result(
     match_id: int,
     result: MatchSubmit,
+    id:int,
     db: Session = Depends(get_db),
-    current_user: Player = Depends(get_current_user),
+    #current_user: Player = Depends(get_current_user),
 ):
-    submitted = service.submit_match_result(db, match_id, result, current_user)
+    submitted = service.submit_match_result(db, match_id, result, id)#current_user)
 
     return submitted
 
@@ -44,9 +45,10 @@ def submit_match_result(
 @router.post("/{match_id}/confirm", response_model=MatchRead)
 def confirm_match(
     match_id: int,
-    db: Session = Depends(get_db),
-    current_user: Player = Depends(get_current_user),
-):
-    confirmed = service.confirm_match(db, match_id, current_user)
+    id:int,
+    db: Session = Depends(get_db)):
+    #current_user: Player = Depends(get_current_user),
+
+    confirmed = service.confirm_match(db, match_id,id)# current_user)
 
     return confirmed

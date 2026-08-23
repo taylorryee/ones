@@ -1,8 +1,10 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func
+import enum
 
 from database import Base
 
 
+    
 class Match(Base):
     __tablename__ = "matches"
 
@@ -13,10 +15,11 @@ class Match(Base):
 
     winner_id = Column(Integer, ForeignKey("players.id"), nullable=True)
 
+
     playerOne_score = Column(Integer, nullable=True)
     playerTwo_score = Column(Integer, nullable=True)
 
-    status = Column(String, nullable=False, default="pending")
+    status = Column(String, nullable=False, default="pending") #pending,awaiting,confirmed
 
     submitted_by_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     confirmed_by_id = Column(Integer, ForeignKey("players.id"), nullable=True)
