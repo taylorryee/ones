@@ -18,6 +18,8 @@ class MatchRead(BaseModel):
     winner_id: int | None
     playerOne_score: int | None
     playerTwo_score: int | None
+    playerOne_win_rating_change: int
+    playerTwo_win_rating_change: int
     status: str
     submitted_by_id: int | None
     confirmed_by_id: int | None

@@ -19,6 +19,9 @@ class Match(Base):
     playerOne_score = Column(Integer, nullable=True)
     playerTwo_score = Column(Integer, nullable=True)
 
+    playerOne_win_rating_change = Column(Integer, nullable=False, default=0)
+    playerTwo_win_rating_change = Column(Integer, nullable=False, default=0)
+
     status = Column(String, nullable=False, default="pending") #pending,awaiting,confirmed
 
     submitted_by_id = Column(Integer, ForeignKey("players.id"), nullable=True)

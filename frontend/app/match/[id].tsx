@@ -2,8 +2,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -20,6 +23,8 @@ type Match = {
   winner_id: number | null;
   playerOne_score: number | null;
   playerTwo_score: number | null;
+  playerOne_win_rating_change: number;
+  playerTwo_win_rating_change: number;
   status: string;
   submitted_by_id: number | null;
   confirmed_by_id: number | null;
@@ -153,6 +158,15 @@ export default function MatchScreen() {
     match != null &&
     (match.playerOne_id === profile.id || match.playerTwo_id === profile.id);
   const canSubmit = isParticipant && match?.status === 'pending';
+  const isPlayerOne = match?.playerOne_id === profile?.id;
+  const yourWinRatingChange = (isPlayerOne
+    ? match?.playerOne_win_rating_change
+    : match?.playerTwo_win_rating_change) ?? 0;
+  const yourLossRatingChange = (isPlayerOne
+    ? match?.playerTwo_win_rating_change
+    : match?.playerOne_win_rating_change) ?? 0;
+  const confirmedRatingChange =
+    match?.winner_id === profile?.id ? yourWinRatingChange : -yourLossRatingChange;
 
   if (isLoading) {
     return (
@@ -172,7 +186,12 @@ export default function MatchScreen() {
 //////////////////////////////////////////////////////////////////////////////
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardAvoidingView}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled">
         <View style={styles.matchCard}>
           <View style={styles.matchRow}>
             <Text style={styles.label}>Player One</Text>
@@ -193,6 +212,13 @@ export default function MatchScreen() {
             <Text style={styles.label}>Match ID</Text>
             <Text style={styles.statusValue}>{id}</Text>
           </View>
+
+          {isParticipant && (
+            <View style={styles.matchRow}>
+              <Text style={styles.label}>Elo</Text>
+              <Text style={styles.value}>Win +{yourWinRatingChange} / Lose -{yourLossRatingChange}</Text>
+            </View>
+          )}
         </View>
 
         {/* match not submitted */}
@@ -284,13 +310,17 @@ export default function MatchScreen() {
           <View style={styles.matchCard}>
             <Text style={styles.title}>Match complete</Text>
             <Text style={styles.subtitle}>Winner: #{match.winner_id}</Text>
+            {isParticipant && (
+              <Text style={styles.subtitle}>Elo change: {confirmedRatingChange && confirmedRatingChange > 0 ? '+' : ''}{confirmedRatingChange}</Text>
+            )}
           </View>
         )}
 
         <Pressable onPress={() => router.replace('/profile')} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back to Profile</Text>
         </Pressable>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
 
   );
@@ -301,6 +331,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   centered: {
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
@@ -308,7 +341,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     gap: 22,
     justifyContent: 'center',
     padding: 20,

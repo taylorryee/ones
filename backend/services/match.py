@@ -9,6 +9,11 @@ from schemas.match import MatchCreate, MatchSubmit
 
 
 ACTIVE_MATCH_STATUSES = ["pending", "submitted"]
+ELO_K_FACTOR = 32
+
+def get_elo_win_change(winner_rating: int, loser_rating: int):
+    expected_score = 1 / (1 + 10 ** ((loser_rating - winner_rating) / 400))
+    return round(ELO_K_FACTOR * (1 - expected_score))
 
 def player_has_active_match(db: Session, player_id: int):
     return (
@@ -42,6 +47,8 @@ def create_match(db: Session, match: MatchCreate, player_one: Player):
     db_match = Match(
         playerOne_id=player_one.id,
         playerTwo_id=player_two.id,
+        playerOne_win_rating_change=get_elo_win_change(player_one.rating, player_two.rating),
+        playerTwo_win_rating_change=get_elo_win_change(player_two.rating, player_one.rating),
         status="pending",
     )
 
@@ -109,9 +116,16 @@ def confirm_match(db: Session, match_id: int, id:int):#current_user: Player):
     winner = db.query(Player).filter(Player.id == db_match.winner_id).first()
     loser_id = db_match.playerTwo_id if db_match.winner_id == db_match.playerOne_id else db_match.playerOne_id
     loser = db.query(Player).filter(Player.id == loser_id).first()
+    rating_change = (
+        db_match.playerOne_win_rating_change
+        if db_match.winner_id == db_match.playerOne_id
+        else db_match.playerTwo_win_rating_change
+    )
 
     winner.wins += 1
     loser.losses += 1
+    winner.rating += rating_change
+    loser.rating -= rating_change
 
     db_match.confirmed_by_id = id
     db_match.status = "confirmed"
