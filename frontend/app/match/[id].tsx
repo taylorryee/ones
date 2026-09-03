@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  TextInput,
 } from 'react-native';
 
 import { api } from '@/api';
@@ -30,7 +31,9 @@ export default function MatchScreen() {
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [score,setScore] = useState('');
+  const [oppScore,setOppScore] = useState('');
+  const [scoreError,setScoreError] = useState('');
 
 /////////////////////////////////////////INTIAL MATCH SETUP//////////////////////////////////////////
   const loadMatch = useCallback(async () => { //intial loading of match
@@ -83,17 +86,28 @@ export default function MatchScreen() {
     const opponentId =
       match.playerOne_id === profile.id ? match.playerTwo_id : match.playerOne_id;
     const winnerId = didWin ? profile.id : opponentId;
+    const yourScore = Number(score);
+    const opponentScore = Number(oppScore);
+
+    if (score === '' || oppScore === '') {
+      setScoreError('Enter both scores before submitting.');
+      return;
+    }
+
+    const playerOneScore = match.playerOne_id === profile.id ? yourScore : opponentScore;
+    const playerTwoScore = match.playerTwo_id === profile.id ? yourScore : opponentScore;
 
     try {
       setIsSubmitting(true);
+      setScoreError('');
 
 
       const response = await api.post<Match>(
         `/matches/${match.id}/submit`,
         {
           winner_id: winnerId,
-          playerOne_score: null,
-          playerTwo_score: null,
+          playerOne_score: playerOneScore,
+          playerTwo_score: playerTwoScore,
         },
         {
           params: {
@@ -184,6 +198,42 @@ export default function MatchScreen() {
         {/* match not submitted */}
         {match.status === 'pending' && (
           <View style={styles.actions}>
+            <View style={styles.scoreCard}>
+              <Text style={styles.scoreTitle}>Report score</Text>
+
+              <View style={styles.scoreRow}>
+                <View style={styles.scoreInputGroup}>
+                  <Text style={styles.label}>Your score</Text>
+                  <TextInput 
+                    value={score}
+                    onChangeText={(value) => {
+                      setScore(value.replace(/\D/g, ''));
+                      setScoreError('');
+                    }}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    style={styles.scoreInput}
+                  />
+                </View>
+
+                <View style={styles.scoreInputGroup}>
+                  <Text style={styles.label}>Opp score</Text>
+                  <TextInput 
+                    value={oppScore}
+                    onChangeText={(value) => {
+                      setOppScore(value.replace(/\D/g, ''));
+                      setScoreError('');
+                    }}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    style={styles.scoreInput}
+                  />
+                </View>
+              </View>
+
+              {scoreError !== '' && <Text style={styles.errorText}>{scoreError}</Text>}
+            </View>
+
             <Pressable
               disabled={!canSubmit || isSubmitting}
               onPress={() => declareResult(true)}
@@ -213,6 +263,8 @@ export default function MatchScreen() {
           <View style={styles.actions}>
             <Text style={styles.title}>Confirm result?</Text>
             <Text style={styles.subtitle}>The other player submitted winner #{match.winner_id}.</Text>
+            <Text style={styles.subtitle}>Player One: {match.playerOne_score}</Text>
+            <Text style={styles.subtitle}>Player Two: {match.playerTwo_score}</Text>
 
             <Pressable
               disabled={isSubmitting}
@@ -315,6 +367,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  scoreCard: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    padding: 18,
+  },
+  scoreTitle: {
+    color: '#111827',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  scoreInputGroup: {
+    flex: 1,
+    gap: 8,
+  },
+  scoreInput: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    borderWidth: 1,
+    color: '#111827',
+    fontSize: 22,
+    fontWeight: '800',
+    minHeight: 56,
+    paddingHorizontal: 12,
+    textAlign: 'center',
+  },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 14,
+    fontWeight: '700',
   },
   actions: {
     gap: 12,

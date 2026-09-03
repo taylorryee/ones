@@ -77,8 +77,8 @@ def submit_match_result(db: Session, match_id: int, result: MatchSubmit, id:int)
         raise HTTPException(status_code=400, detail="Submitter must be in the match")
 
     db_match.winner_id = result.winner_id
-    # db_match.playerOne_score = result.playerOne_score
-    # db_match.playerTwo_score = result.playerTwo_score
+    db_match.playerOne_score = result.playerOne_score
+    db_match.playerTwo_score = result.playerTwo_score
     db_match.submitted_by_id = id
     db_match.status = "submitted"
     db_match.submitted_at = datetime.now(timezone.utc)
