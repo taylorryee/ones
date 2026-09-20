@@ -22,6 +22,13 @@ def create_match(
     return created
 
 
+@router.get("/player/{player_id}", response_model=list[MatchRead])
+def get_player_matches(player_id: int, db: Session = Depends(get_db)):
+    matches = service.get_player_matches(db, player_id)
+
+    return matches
+
+
 @router.get("/{match_id}", response_model=MatchRead)
 def get_match(match_id: int, db: Session = Depends(get_db)):
     db_match = service.get_match(db, match_id)

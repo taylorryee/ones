@@ -7,6 +7,7 @@ from alembic import context
 from database import Base
 from models.player import Player
 from models.match import Match
+from models.sticker import BallSticker, PlayerSticker, Sticker
 import os
 from dotenv import load_dotenv
 

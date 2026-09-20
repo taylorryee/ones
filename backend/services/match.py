@@ -69,6 +69,20 @@ def get_match(db: Session, match_id: int):
     return db_match
 
 
+def get_player_matches(db: Session, player_id: int):
+    player = db.query(Player).filter(Player.id == player_id).first()
+
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    return (
+        db.query(Match)
+        .filter((Match.playerOne_id == player_id) | (Match.playerTwo_id == player_id))
+        .order_by(Match.id.desc())
+        .all()
+    )
+
+
 def submit_match_result(db: Session, match_id: int, result: MatchSubmit, id:int):#current_user: Player):
     db_match = get_match(db, match_id)
 

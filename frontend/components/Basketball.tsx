@@ -1,0 +1,168 @@
+import type { ReactNode } from 'react';
+import {
+  Image,
+  type ImageSourcePropType,
+  type StyleProp,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
+import Svg, { Path, type SvgProps } from 'react-native-svg';
+
+import type { BallStickerPlacement } from '@/services/stickers';
+
+const BALL_ASPECT_RATIO = 330 / 271;
+const DEFAULT_STICKER_SIZE_RATIO = 0.22;
+
+type StickerSourceResolver = (placement: BallStickerPlacement) => ImageSourcePropType | null;
+type StickerRenderer = (placement: BallStickerPlacement) => ReactNode;
+
+type BasketballProps = {
+  height?: number;
+  renderSticker?: StickerRenderer;
+  resolveStickerSource?: StickerSourceResolver;
+  stickers?: BallStickerPlacement[];
+  style?: StyleProp<ViewStyle>;
+  width: number;
+};
+
+type BasketballStickerLayerProps = {
+  height: number;
+  renderSticker?: StickerRenderer;
+  resolveStickerSource?: StickerSourceResolver;
+  stickers: BallStickerPlacement[];
+  width: number;
+};
+
+function defaultStickerSource(placement: BallStickerPlacement): ImageSourcePropType | null {
+  return placement.sticker.asset_uri ? { uri: placement.sticker.asset_uri } : null;
+}
+
+export function BasketballArtwork(props: SvgProps) {
+  return (
+    <Svg fill="none" viewBox="0 0 330 271" {...props}>
+      <Path
+        d="M126.977 6.88222C147.463 2.33092 159.152 1.30313 162.004 1.18194C164.857 1.06075 174.534 -0.738934 200.004 10.1819C222.004 19.6148 205.504 11.6819 219.004 18.1819L219.312 18.3301C232.534 24.6958 234.45 25.6184 240.504 32.6819C255.504 50.1819 251.577 48.1763 254.504 52.1819C264.004 65.182 263.97 68.4913 267.004 72.6819C277.504 87.1819 280.044 91.8392 284.004 96.1819C292.559 105.562 299.205 118.102 303.004 124.682C312.032 140.317 316.712 150.475 320.251 167.489C322.082 176.294 332.262 195.714 326.77 207.751C320.372 221.774 315.705 243.298 308.27 251.138C299.411 260.481 285.113 261.122 272.504 265.683C256.089 271.621 248.677 268.369 231.635 268.369H192.004H164.004H119.504H84.5044C77.2108 268.369 64.4927 268.466 56.0044 265.683C51.0365 264.055 45.6576 263.091 35.0044 256.682C27.6896 252.281 30.5599 253.426 25.0044 251.182C19.4488 248.938 23.8382 252.182 14.5044 244.182C-0.663393 231.182 0.00437312 229.682 0.00437312 225.182V201.182V163.182C0.00437312 157.182 0.551812 150.625 2.50437 143.682C3.99489 138.382 5.18065 131.242 6.50437 124.682C7.7565 118.477 8.60498 113.738 9.00437 110.682C9.7725 104.804 13.6245 98.049 16.1681 92.9551C19.5831 86.116 24.884 74.708 31.3058 64.8277C41.3749 49.336 52.5568 38.455 65.1588 29.5568C71.8943 24.8008 81.4295 19.4956 96.0375 15.0618C104.789 12.4055 116.202 9.27592 126.977 6.88222Z"
+        fill="#E48E3E"
+        stroke="black"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </Svg>
+  );
+}
+
+export function BasketballSeams(props: SvgProps) {
+  return (
+    <Svg fill="none" viewBox="0 0 330 271" {...props}>
+      <Path
+        d="M38.0044 56.1819C44.5044 45.1819 53.5044 43.1819 70.5044 38.6819C97.5044 36.1819 101.74 40.4845 108.504 43.1819C127.697 50.8352 141.906 66.0024 155.004 73.1819C180.999 87.4303 205.62 121.098 224.164 133.028C257.687 154.597 269.801 174.645 284.004 193.682C293.193 205.998 299.881 213.852 301.504 218.182C304.504 226.182 309.504 236.182 313.004 243.682"
+        stroke="black"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+      <Path
+        d="M24.77 76.7511C46.281 76.5809 98.6748 73.0771 117.68 60.9435C131.73 51.9739 136.59 42.716 162.038 27.8479C179.639 18.7154 188.635 16.7123 195.03 16.2865C198.888 16.1417 207.349 16.1068 213.004 16.2865"
+        stroke="black"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+      <Path
+        d="M10.0044 239.182C10.1487 238.599 19.7435 226.829 43.6304 203.481C59.6909 187.782 84.9814 165.553 106.022 148.341C142.361 118.616 162.18 107.407 174.438 102.657C203.386 92.4391 230.763 84.1941 245.739 81.7003C252.536 80.7869 265.184 79.3865 270.504 79.1819"
+        stroke="black"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+      <Path
+        d="M102.504 268.182C110.839 268.182 150.247 260.554 163.504 254.682C172.427 250.73 191.59 234.87 212.175 208.681C241.291 171.637 249.964 146.337 257.504 137.682C263.62 130.663 272.004 128.676 280.185 128.676C282.802 128.676 283.132 127.68 287.504 127.349C291.876 127.019 297.3 127.142 304.004 127.349"
+        stroke="black"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </Svg>
+  );
+}
+
+export function BasketballStickerLayer({
+  height,
+  renderSticker,
+  resolveStickerSource = defaultStickerSource,
+  stickers,
+  width,
+}: BasketballStickerLayerProps) {
+  const baseSize = Math.min(width, height) * DEFAULT_STICKER_SIZE_RATIO;
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {[...stickers]
+        .sort((first, second) => first.z_index - second.z_index || first.id - second.id)
+        .map((placement) => {
+          const source = renderSticker ? null : resolveStickerSource(placement);
+          const sticker = renderSticker ? (
+            renderSticker(placement)
+          ) : source ? (
+            <Image resizeMode="contain" source={source} style={StyleSheet.absoluteFill} />
+          ) : null;
+          if (!sticker) {
+            return null;
+          }
+
+          const size = baseSize * placement.scale;
+          return (
+            <View
+              key={placement.id}
+              style={{
+                height: size,
+                left: placement.u * width - size / 2,
+                position: 'absolute',
+                top: placement.v * height - size / 2,
+                transform: [{ rotate: `${placement.rotation}deg` }],
+                width: size,
+                zIndex: placement.z_index,
+              }}>
+              {sticker}
+            </View>
+          );
+        })}
+    </View>
+  );
+}
+
+export function Basketball({
+  width,
+  height = width / BALL_ASPECT_RATIO,
+  renderSticker,
+  resolveStickerSource,
+  stickers = [],
+  style,
+}: BasketballProps) {
+  return (
+    <View style={[styles.container, { height, width }, style]}>
+      <BasketballArtwork height="100%" style={styles.svgLayer} width="100%" />
+      <BasketballSeams height="100%" style={styles.svgLayer} width="100%" />
+      <BasketballStickerLayer
+        height={height}
+        renderSticker={renderSticker}
+        resolveStickerSource={resolveStickerSource}
+        stickers={stickers}
+        width={width}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'relative',
+  },
+  svgLayer: {
+    left: 0,
+    position: 'absolute',
+    top: 0,
+  },
+});

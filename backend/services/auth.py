@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from auth import create_access_token, hash_password, verify_password
 from models.player import Player
+from models.sticker import PlayerSticker, Sticker
 from schemas.auth import AuthCredentials
 
 
@@ -21,6 +22,10 @@ def register_player(db: Session, credentials: AuthCredentials):
         password_hash=hash_password(credentials.password),
         qr_code=str(uuid.uuid4()),
     )
+
+    starter_sticker = db.query(Sticker).filter(Sticker.slug == "og-sticker").first()
+    if starter_sticker is not None:
+        player.sticker_inventory.append(PlayerSticker(sticker=starter_sticker))
 
     db.add(player)
     db.commit()

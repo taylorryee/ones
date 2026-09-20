@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
 
 from database import Base
 
@@ -12,3 +13,9 @@ class Player(Base):
     losses = Column(Integer, nullable=False, default=0)
     rating = Column(Integer, nullable=False, default=1200)
     qr_code = Column(String, unique=True, nullable=False, index=True)
+
+    sticker_inventory = relationship(
+        "PlayerSticker",
+        back_populates="player",
+        cascade="all, delete-orphan",
+    )
