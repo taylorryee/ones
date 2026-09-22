@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -28,6 +28,7 @@ type Match = {
   status: string;
   submitted_by_id: number | null;
   confirmed_by_id: number | null;
+  awarded_player_sticker_id: number | null;
 };
 
 export default function MatchScreen() {
@@ -75,12 +76,33 @@ export default function MatchScreen() {
     loadMatch();
   }, [loadMatch]);
 
-  useEffect(() => { //polling for match updates 
+  useEffect(() => { //polling for match updates
     const intervalId = setInterval(refreshMatch, 3000);
 
     return () => clearInterval(intervalId);
   }, [refreshMatch]);
 /////////////////////////////////////////////////////////////////////////////////////////////
+
+  const hasNavigatedOnConfirmRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      match?.status === 'confirmed' &&
+      match.winner_id === profile?.id &&
+      !hasNavigatedOnConfirmRef.current
+    ) {
+      hasNavigatedOnConfirmRef.current = true;
+
+      if (match.awarded_player_sticker_id != null) {
+        router.replace({
+          pathname: '/ball-editor',
+          params: { playerStickerId: String(match.awarded_player_sticker_id) },
+        });
+      } else {
+        router.replace('/profile');
+      }
+    }
+  }, [match, profile]);
 
 //////////////////////////////////RESULT SUBMISSION//////////////////////////////////////////
   async function declareResult(didWin: boolean) {

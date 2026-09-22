@@ -23,11 +23,20 @@ def register_player(db: Session, credentials: AuthCredentials):
         qr_code=str(uuid.uuid4()),
     )
 
-    starter_sticker = db.query(Sticker).filter(Sticker.slug == "og-sticker").first()
-    if starter_sticker is not None:
-        player.sticker_inventory.append(PlayerSticker(sticker=starter_sticker))
-
     db.add(player)
+    db.flush()
+
+    signature_sticker = Sticker(
+        slug=f"signature-{player.id}",
+        name=f"{player.name}'s Sticker",
+        asset_uri="asset://og-sticker",
+        owner_player_id=player.id,
+    )
+    db.add(signature_sticker)
+    db.flush()
+
+    player.sticker_inventory.append(PlayerSticker(sticker=signature_sticker))
+
     db.commit()
     db.refresh(player)
 

@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 
 from models.match import Match
 from models.player import Player
+from models.sticker import PlayerSticker, Sticker
 from schemas.match import MatchCreate, MatchSubmit
+from services import sticker as sticker_service
 
 
 ACTIVE_MATCH_STATUSES = ["pending", "submitted"]
@@ -140,6 +142,21 @@ def confirm_match(db: Session, match_id: int, id:int):#current_user: Player):
     loser.losses += 1
     winner.rating += rating_change
     loser.rating -= rating_change
+
+    signature_sticker = db.query(Sticker).filter(Sticker.owner_player_id == loser.id).first()
+    if signature_sticker is not None:
+        already_won = (
+            db.query(PlayerSticker)
+            .filter(
+                PlayerSticker.player_id == winner.id,
+                PlayerSticker.sticker_id == signature_sticker.id,
+            )
+            .first()
+            is not None
+        )
+        if not already_won:
+            owned = sticker_service.award_sticker(db, winner.id, signature_sticker.id)
+            db_match.awarded_player_sticker_id = owned.id
 
     db_match.confirmed_by_id = id
     db_match.status = "confirmed"

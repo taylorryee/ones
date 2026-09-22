@@ -27,6 +27,10 @@ class Match(Base):
     submitted_by_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     confirmed_by_id = Column(Integer, ForeignKey("players.id"), nullable=True)
 
+    awarded_player_sticker_id = Column(
+        Integer, ForeignKey("player_stickers.id", ondelete="SET NULL"), nullable=True
+    )
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     confirmed_at = Column(DateTime(timezone=True), nullable=True)

@@ -23,7 +23,8 @@ class MatchRead(BaseModel):
     status: str
     submitted_by_id: int | None
     confirmed_by_id: int | None
-    
+    awarded_player_sticker_id: int | None
+
 
     model_config = {
         "from_attributes": True,

@@ -21,6 +21,13 @@ class Sticker(Base):
     slug = Column(String, nullable=False, unique=True, index=True)
     name = Column(String, nullable=False)
     asset_uri = Column(String, nullable=False)
+    owner_player_id = Column(
+        Integer,
+        ForeignKey("players.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
 
     player_stickers = relationship("PlayerSticker", back_populates="sticker")
 

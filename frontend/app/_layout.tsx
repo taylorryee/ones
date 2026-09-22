@@ -8,6 +8,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="test-challenge" />
       </Stack>
       <StatusBar style="auto" />
     </>
