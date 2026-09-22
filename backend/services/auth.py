@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 from auth import create_access_token, hash_password, verify_password
 from models.player import Player
 from models.sticker import PlayerSticker, Sticker
-from schemas.auth import AuthCredentials
+from schemas.auth import AuthCredentials, RegisterRequest
+from services import sticker as sticker_service
 
 
-def register_player(db: Session, credentials: AuthCredentials):
+def register_player(db: Session, credentials: RegisterRequest):
     existing_player = db.query(Player).filter(Player.name == credentials.name).first()
     if existing_player is not None:
         raise HTTPException(
@@ -17,25 +18,23 @@ def register_player(db: Session, credentials: AuthCredentials):
             detail="A player with that name already exists",
         )
 
+    if credentials.archetype not in sticker_service.ARCHETYPE_SLUGS:
+        raise HTTPException(status_code=400, detail="Invalid archetype")
+    archetype_sticker = db.query(Sticker).filter(Sticker.slug == credentials.archetype).first()
+    if archetype_sticker is None:
+        raise HTTPException(status_code=400, detail="Invalid archetype")
+
     player = Player(
         name=credentials.name,
         password_hash=hash_password(credentials.password),
         qr_code=str(uuid.uuid4()),
+        archetype_sticker_id=archetype_sticker.id,
     )
 
     db.add(player)
     db.flush()
 
-    signature_sticker = Sticker(
-        slug=f"signature-{player.id}",
-        name=f"{player.name}'s Sticker",
-        asset_uri="asset://og-sticker",
-        owner_player_id=player.id,
-    )
-    db.add(signature_sticker)
-    db.flush()
-
-    player.sticker_inventory.append(PlayerSticker(sticker=signature_sticker))
+    player.sticker_inventory.append(PlayerSticker(sticker=archetype_sticker))
 
     db.commit()
     db.refresh(player)

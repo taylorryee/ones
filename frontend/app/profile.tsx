@@ -1,16 +1,17 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Basketball } from '@/components/Basketball';
-import { OGSticker } from '@/components/OGSticker';
+import { StickerArt } from '@/components/StickerArt';
+import { getArchetype } from '@/constants/archetypes';
 import { getCurrentUser, logout, type UserProfile } from '@/services/auth';
 import { type BallStickerPlacement, getStickerInventory } from '@/services/stickers';
 
-function renderSticker(_placement: BallStickerPlacement) {
-  return <OGSticker height="100%" width="100%" />;
+function renderSticker(placement: BallStickerPlacement) {
+  return <StickerArt slug={placement.sticker.slug} />;
 }
 
 export default function ProfileScreen() {
@@ -69,6 +70,18 @@ export default function ProfileScreen() {
     router.replace('/login');
   }
 
+  const swipeUpResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dy) > Math.abs(gesture.dx) && gesture.dy < -10,
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy < -60) {
+          router.push('/qr-code');
+        }
+      },
+    })
+  ).current;
+
   if (isLoading || !profile) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -77,8 +90,10 @@ export default function ProfileScreen() {
     );
   }
 
+  const archetype = profile.archetype_slug ? getArchetype(profile.archetype_slug) : null;
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} {...swipeUpResponder.panHandlers}>
       <View style={styles.topBar}>
         <Pressable onPress={() => router.push('/test-challenge')} style={styles.challengeButton}>
           <Text style={styles.challengeButtonText}>Challenge</Text>
@@ -91,6 +106,12 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <Text style={styles.name}>{profile.name}</Text>
         <Text style={styles.rating}>Rating {profile.rating}</Text>
+        {archetype && (
+          <View style={styles.archetypeBadge}>
+            <View style={[styles.archetypeDot, { backgroundColor: archetype.color }]} />
+            <Text style={styles.archetypeText}>{archetype.name}</Text>
+          </View>
+        )}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statValue}>{profile.wins}</Text>
@@ -162,6 +183,21 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 28,
     fontWeight: '800',
+  },
+  archetypeBadge: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  archetypeDot: {
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  archetypeText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '700',
   },
   rating: {
     color: '#6B7280',

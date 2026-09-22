@@ -24,6 +24,7 @@ class MatchRead(BaseModel):
     submitted_by_id: int | None
     confirmed_by_id: int | None
     awarded_player_sticker_id: int | None
+    sticker_outcome: str | None
 
 
     model_config = {

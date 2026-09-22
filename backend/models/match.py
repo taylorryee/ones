@@ -30,6 +30,7 @@ class Match(Base):
     awarded_player_sticker_id = Column(
         Integer, ForeignKey("player_stickers.id", ondelete="SET NULL"), nullable=True
     )
+    sticker_outcome = Column(String, nullable=True)  # unlocked, leveled_up
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=True)

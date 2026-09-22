@@ -29,6 +29,7 @@ type Match = {
   submitted_by_id: number | null;
   confirmed_by_id: number | null;
   awarded_player_sticker_id: number | null;
+  sticker_outcome: 'unlocked' | 'leveled_up' | null;
 };
 
 export default function MatchScreen() {
@@ -93,7 +94,7 @@ export default function MatchScreen() {
     ) {
       hasNavigatedOnConfirmRef.current = true;
 
-      if (match.awarded_player_sticker_id != null) {
+      if (match.sticker_outcome === 'unlocked' && match.awarded_player_sticker_id != null) {
         router.replace({
           pathname: '/ball-editor',
           params: { playerStickerId: String(match.awarded_player_sticker_id) },

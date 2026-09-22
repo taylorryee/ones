@@ -17,6 +17,7 @@ class PlayerRead(BaseModel):
     losses: int
     rating: int
     qr_code: str
+    archetype_slug: str | None = None
 
     model_config = {
         "from_attributes": True,

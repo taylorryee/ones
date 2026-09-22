@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from models.match import Match
 from models.player import Player
-from models.sticker import PlayerSticker, Sticker
 from schemas.match import MatchCreate, MatchSubmit
 from services import sticker as sticker_service
 
@@ -27,6 +26,20 @@ def player_has_active_match(db: Session, player_id: int):
         .first()
         is not None
     )
+
+def players_have_played_before(db: Session, player_a_id: int, player_b_id: int, exclude_match_id: int):
+    return (
+        db.query(Match.id)
+        .filter(
+            Match.status == "confirmed",
+            Match.id != exclude_match_id,
+            ((Match.playerOne_id == player_a_id) & (Match.playerTwo_id == player_b_id))
+            | ((Match.playerOne_id == player_b_id) & (Match.playerTwo_id == player_a_id)),
+        )
+        .first()
+        is not None
+    )
+
 
 def create_match(db: Session, match: MatchCreate, player_one: Player):
     player_two = db.query(Player).filter(Player.qr_code == match.opp_qr).first()
@@ -143,20 +156,15 @@ def confirm_match(db: Session, match_id: int, id:int):#current_user: Player):
     winner.rating += rating_change
     loser.rating -= rating_change
 
-    signature_sticker = db.query(Sticker).filter(Sticker.owner_player_id == loser.id).first()
-    if signature_sticker is not None:
-        already_won = (
-            db.query(PlayerSticker)
-            .filter(
-                PlayerSticker.player_id == winner.id,
-                PlayerSticker.sticker_id == signature_sticker.id,
-            )
-            .first()
-            is not None
+    if (
+        loser.archetype_sticker_id is not None
+        and not players_have_played_before(db, winner.id, loser.id, db_match.id)
+    ):
+        owned, outcome = sticker_service.award_archetype_sticker(
+            db, winner.id, loser.archetype_sticker_id
         )
-        if not already_won:
-            owned = sticker_service.award_sticker(db, winner.id, signature_sticker.id)
-            db_match.awarded_player_sticker_id = owned.id
+        db_match.awarded_player_sticker_id = owned.id
+        db_match.sticker_outcome = outcome
 
     db_match.confirmed_by_id = id
     db_match.status = "confirmed"

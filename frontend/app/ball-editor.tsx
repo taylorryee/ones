@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Basketball } from '@/components/Basketball';
-import { OGSticker } from '@/components/OGSticker';
+import { StickerArt } from '@/components/StickerArt';
 import {
   type BallStickerPlacement,
   getStickerInventory,
@@ -45,8 +45,8 @@ function isWithinPlaceableRadius(point: Point, ballOrigin: Point) {
   );
 }
 
-function renderSticker(_placement: BallStickerPlacement) {
-  return <OGSticker height="100%" width="100%" />;
+function renderSticker(placement: BallStickerPlacement) {
+  return <StickerArt slug={placement.sticker.slug} />;
 }
 
 export default function BallEditorScreen() {
@@ -189,8 +189,12 @@ export default function BallEditorScreen() {
   function handleDone() {
     if (ownedSticker && !isPlaced) {
       Alert.alert(
-        'Place your sticker',
-        'Drag your new sticker onto your ball before continuing.'
+        'Place your sticker?',
+        'Your new sticker is saved to your collection. You can place it on your ball now or skip.',
+        [
+          { text: 'Keep editing', style: 'cancel' },
+          { text: 'Skip', onPress: () => router.replace('/profile') },
+        ]
       );
       return;
     }
@@ -250,7 +254,7 @@ export default function BallEditorScreen() {
             transform: [{ rotate: `${placementDetailsRef.current.rotation}deg` }],
             width: stickerSize,
           }}>
-          <OGSticker height="100%" width="100%" />
+          <StickerArt slug={ownedSticker.sticker.slug} />
         </View>
       ) : null}
     </SafeAreaView>

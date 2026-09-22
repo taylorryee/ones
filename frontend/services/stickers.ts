@@ -27,6 +27,7 @@ export type OwnedSticker = {
   id: number;
   player_id: number;
   earned_at: string;
+  level: number;
   sticker: StickerDefinition;
   ball_placement: Omit<BallStickerPlacement, 'sticker'> | null;
 };

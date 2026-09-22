@@ -8,6 +8,10 @@ class AuthCredentials(BaseModel):
     password: str
 
 
+class RegisterRequest(AuthCredentials):
+    archetype: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

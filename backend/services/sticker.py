@@ -5,6 +5,8 @@ from models.player import Player
 from models.sticker import BallSticker, PlayerSticker, Sticker
 from schemas.sticker import BallStickerPlacementWrite
 
+ARCHETYPE_SLUGS = ("sniper", "slasher", "thinker", "bully")
+
 
 def get_sticker_catalog(db: Session):
     return db.query(Sticker).order_by(Sticker.name, Sticker.id).all()
@@ -39,28 +41,20 @@ def get_ball_stickers(db: Session, player_id: int):
     )
 
 
-def award_sticker(db: Session, player_id: int, sticker_id: int):
-    if db.query(Player.id).filter(Player.id == player_id).first() is None:
-        raise HTTPException(status_code=404, detail="Player not found")
-    if db.query(Sticker.id).filter(Sticker.id == sticker_id).first() is None:
-        raise HTTPException(status_code=404, detail="Sticker not found")
-
+def award_archetype_sticker(db: Session, player_id: int, sticker_id: int):
     owned_sticker = (
         db.query(PlayerSticker)
-        .filter(
-            PlayerSticker.player_id == player_id,
-            PlayerSticker.sticker_id == sticker_id,
-        )
+        .filter(PlayerSticker.player_id == player_id, PlayerSticker.sticker_id == sticker_id)
         .first()
     )
     if owned_sticker is not None:
-        return owned_sticker
+        owned_sticker.level += 1
+        return owned_sticker, "leveled_up"
 
-    owned_sticker = PlayerSticker(player_id=player_id, sticker_id=sticker_id)
+    owned_sticker = PlayerSticker(player_id=player_id, sticker_id=sticker_id, level=1)
     db.add(owned_sticker)
-    db.commit()
-    db.refresh(owned_sticker)
-    return owned_sticker
+    db.flush()
+    return owned_sticker, "unlocked"
 
 
 def place_sticker(

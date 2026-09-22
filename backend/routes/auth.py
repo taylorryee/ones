@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from database import get_db
 from models.player import Player
-from schemas.auth import AuthCredentials, TokenResponse
+from schemas.auth import AuthCredentials, RegisterRequest, TokenResponse
 from schemas.player import PlayerRead
 from services import auth as service
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse)
-def register(credentials: AuthCredentials, db: Session = Depends(get_db)):
+def register(credentials: RegisterRequest, db: Session = Depends(get_db)):
     return service.register_player(db, credentials)
 
 

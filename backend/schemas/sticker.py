@@ -35,6 +35,7 @@ class PlayerStickerRead(BaseModel):
     id: int
     player_id: int
     earned_at: datetime
+    level: int
     sticker: StickerRead
     ball_placement: BallStickerPlacementRead | None
 

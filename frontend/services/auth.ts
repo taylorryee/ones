@@ -1,4 +1,5 @@
 import { api, clearAuthToken, setAuthToken } from '@/api';
+import type { ArchetypeSlug } from '@/constants/archetypes';
 
 export type UserProfile = {
   id: number;
@@ -7,6 +8,7 @@ export type UserProfile = {
   losses: number;
   rating: number;
   qr_code: string;
+  archetype_slug: string | null;
 };
 
 type AuthCredentials = {
@@ -14,13 +16,15 @@ type AuthCredentials = {
   password: string;
 };
 
+type RegisterRequest = AuthCredentials & { archetype: ArchetypeSlug };
+
 type AuthResponse = {
   access_token: string;
   token_type: string;
   user: UserProfile;
 };
 
-export async function register(credentials: AuthCredentials) {
+export async function register(credentials: RegisterRequest) {
   const response = await api.post<AuthResponse>('/auth/register', credentials);
   await setAuthToken(response.data.access_token);
   return response.data.user;

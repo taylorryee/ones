@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { ArchetypeQuiz } from '@/components/ArchetypeQuiz';
+import type { ArchetypeSlug } from '@/constants/archetypes';
 import { login, register } from '@/services/auth';
 
 export default function LoginScreen() {
@@ -9,6 +11,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [step, setStep] = useState<'credentials' | 'quiz'>('credentials');
 
   async function handleAuth(mode: 'login' | 'register') {
     if (!name.trim() || !password) {
@@ -16,20 +19,52 @@ export default function LoginScreen() {
       return;
     }
 
+    if (mode === 'register') {
+      setMessage('');
+      setStep('quiz');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setMessage('');
 
-      await (mode === 'login'
-        ? login({ name: name.trim(), password })
-        : register({ name: name.trim(), password }));
+      await login({ name: name.trim(), password });
 
       router.replace('/profile');
     } catch {
-      setMessage(mode === 'login' ? 'Login failed.' : 'Registration failed.');
+      setMessage('Login failed.');
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleQuizComplete(archetype: ArchetypeSlug) {
+    try {
+      setIsLoading(true);
+      await register({ name: name.trim(), password, archetype });
+      router.replace('/profile');
+    } catch {
+      setMessage('Registration failed.');
+      setStep('credentials');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (step === 'quiz') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <ArchetypeQuiz
+            errorMessage={message}
+            isSubmitting={isLoading}
+            onCancel={() => setStep('credentials')}
+            onComplete={handleQuizComplete}
+          />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
