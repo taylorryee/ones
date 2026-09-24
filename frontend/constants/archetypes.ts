@@ -1,10 +1,24 @@
+import type { FC } from 'react';
+import type { SvgProps } from 'react-native-svg';
+
+import BullyIcon from '@/assets/stickers/bully.svg';
+import SlasherIcon from '@/assets/stickers/slasher.svg';
+import SniperIcon from '@/assets/stickers/sniper.svg';
+import ThinkerIcon from '@/assets/stickers/thinker.svg';
+
 export type ArchetypeSlug = 'sniper' | 'slasher' | 'thinker' | 'bully';
 
-export const ARCHETYPES: { slug: ArchetypeSlug; name: string; color: string; description: string }[] = [
-  { slug: 'sniper', name: 'Sniper', color: '#2563EB', description: 'Lives beyond the arc.' },
-  { slug: 'slasher', name: 'Slasher', color: '#DC2626', description: 'Attacks the rim.' },
-  { slug: 'thinker', name: 'Thinker', color: '#7C3AED', description: 'Wins with IQ.' },
-  { slug: 'bully', name: 'Bully', color: '#EA580C', description: 'Plays through contact.' },
+export const ARCHETYPES: {
+  slug: ArchetypeSlug;
+  name: string;
+  color: string;
+  description: string;
+  icon: FC<SvgProps>;
+}[] = [
+  { slug: 'sniper', name: 'Sniper', color: '#2563EB', description: 'Lives beyond the arc.', icon: SniperIcon },
+  { slug: 'slasher', name: 'Slasher', color: '#DC2626', description: 'Attacks the rim.', icon: SlasherIcon },
+  { slug: 'thinker', name: 'Thinker', color: '#7C3AED', description: 'Wins with IQ.', icon: ThinkerIcon },
+  { slug: 'bully', name: 'Bully', color: '#EA580C', description: 'Plays through contact.', icon: BullyIcon },
 ];
 
 export type QuizQuestion = {

@@ -27,14 +27,15 @@ def player_has_active_match(db: Session, player_id: int):
         is not None
     )
 
-def players_have_played_before(db: Session, player_a_id: int, player_b_id: int, exclude_match_id: int):
+def has_player_beaten_opponent_before(db: Session, winner_id: int, loser_id: int, exclude_match_id: int):
     return (
         db.query(Match.id)
         .filter(
             Match.status == "confirmed",
             Match.id != exclude_match_id,
-            ((Match.playerOne_id == player_a_id) & (Match.playerTwo_id == player_b_id))
-            | ((Match.playerOne_id == player_b_id) & (Match.playerTwo_id == player_a_id)),
+            Match.winner_id == winner_id,
+            ((Match.playerOne_id == winner_id) & (Match.playerTwo_id == loser_id))
+            | ((Match.playerOne_id == loser_id) & (Match.playerTwo_id == winner_id)),
         )
         .first()
         is not None
@@ -158,7 +159,7 @@ def confirm_match(db: Session, match_id: int, id:int):#current_user: Player):
 
     if (
         loser.archetype_sticker_id is not None
-        and not players_have_played_before(db, winner.id, loser.id, db_match.id)
+        and not has_player_beaten_opponent_before(db, winner.id, loser.id, db_match.id)
     ):
         owned, outcome = sticker_service.award_archetype_sticker(
             db, winner.id, loser.archetype_sticker_id
