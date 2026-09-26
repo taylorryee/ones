@@ -122,6 +122,9 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>Losses</Text>
           </View>
         </View>
+        <Pressable onPress={() => router.push('/badge-wall')} style={styles.badgeWallButton}>
+          <Text style={styles.badgeWallButtonText}>Badge Wall</Text>
+        </Pressable>
       </View>
 
       <View pointerEvents="none" style={styles.basketball}>
@@ -228,6 +231,19 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 12,
     fontWeight: '700',
+  },
+  badgeWallButton: {
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 12,
+  },
+  badgeWallButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
   basketball: {
     bottom: -3,

@@ -5,21 +5,28 @@ import BullyIcon from '@/assets/stickers/bully.svg';
 import SlasherIcon from '@/assets/stickers/slasher.svg';
 import SniperIcon from '@/assets/stickers/sniper.svg';
 import ThinkerIcon from '@/assets/stickers/thinker.svg';
+import ConeIcon from '@/assets/stickers/cone.svg';
+import GoatIcon from '@/assets/stickers/goat.svg';
+import LockdownIcon from '@/assets/stickers/lockdown.svg';
+import TrashIcon from '@/assets/stickers/trash.svg';
 
-export type ArchetypeSlug = 'sniper' | 'slasher' | 'thinker' | 'bully';
+export type ArchetypeSlug = 'sniper' | 'slasher' | 'thinker' | 'bully' | 'cone' | 'lockdown' | 'goat' | 'trash';
 
 export const ARCHETYPES: {
   slug: ArchetypeSlug;
   name: string;
-  color: string;
   description: string;
   icon: FC<SvgProps>;
 }[] = [
-  { slug: 'sniper', name: 'Sniper', color: '#2563EB', description: 'Lives beyond the arc.', icon: SniperIcon },
-  { slug: 'slasher', name: 'Slasher', color: '#DC2626', description: 'Attacks the rim.', icon: SlasherIcon },
-  { slug: 'thinker', name: 'Thinker', color: '#7C3AED', description: 'Wins with IQ.', icon: ThinkerIcon },
-  { slug: 'bully', name: 'Bully', color: '#EA580C', description: 'Plays through contact.', icon: BullyIcon },
-];
+  { slug: 'sniper', name: 'Sniper',  description: 'Green guy', icon: SniperIcon },
+  { slug: 'slasher', name: 'Slasher',  description: 'The best archetype', icon: SlasherIcon },
+  { slug: 'thinker', name: 'Thinker', description: '4D hoops', icon: ThinkerIcon },
+  { slug: 'bully', name: 'Bully',  description: 'Big dawg', icon: BullyIcon },
+  { slug: 'cone', name: 'Cone',  description: 'Luka that u??', icon: ConeIcon},
+  { slug: 'goat', name: 'Goat',  description: 'baaa', icon: GoatIcon},
+  { slug: 'lockdown', name: 'Lockdown',  description: 'Free mee', icon: LockdownIcon},
+  { slug: 'trash', name: 'Trash',  description: 'U cut bru', icon: TrashIcon},
+]
 
 export type QuizQuestion = {
   prompt: string;

@@ -5,7 +5,16 @@ from models.player import Player
 from models.sticker import BallSticker, PlayerSticker, Sticker
 from schemas.sticker import BallStickerPlacementWrite
 
-ARCHETYPE_SLUGS = ("sniper", "slasher", "thinker", "bully")
+ARCHETYPE_SLUGS = (
+    "sniper",
+    "slasher",
+    "thinker",
+    "bully",
+    "cone",
+    "goat",
+    "lockdown",
+    "trash",
+)
 
 
 def get_sticker_catalog(db: Session):
