@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -5,6 +6,19 @@ import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'reac
 import { ArchetypeQuiz } from '@/components/ArchetypeQuiz';
 import type { ArchetypeSlug } from '@/constants/archetypes';
 import { login, register } from '@/services/auth';
+
+function describeAuthError(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    if (!error.response) {
+      return 'Could not reach the server. Check your connection and try again.';
+    }
+    const detail = error.response.data?.detail;
+    if (typeof detail === 'string') {
+      return detail;
+    }
+  }
+  return fallback;
+}
 
 export default function LoginScreen() {
   const [name, setName] = useState('');
@@ -28,12 +42,10 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       setMessage('');
-
       await login({ name: name.trim(), password });
-
       router.replace('/profile');
-    } catch {
-      setMessage('Login failed.');
+    } catch (error) {
+      setMessage(describeAuthError(error, 'Login failed.'));
     } finally {
       setIsLoading(false);
     }
@@ -44,8 +56,8 @@ export default function LoginScreen() {
       setIsLoading(true);
       await register({ name: name.trim(), password, archetype });
       router.replace('/profile');
-    } catch {
-      setMessage('Registration failed.');
+    } catch (error) {
+      setMessage(describeAuthError(error, 'Registration failed.'));
       setStep('credentials');
     } finally {
       setIsLoading(false);

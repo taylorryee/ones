@@ -1,11 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
   FlatList,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -19,11 +20,21 @@ import { getCurrentUser, type UserProfile } from '@/services/auth';
 import { getStickerInventory, type OwnedSticker } from '@/services/stickers';
 
 const NUM_COLUMNS = 2;
+const NUM_ROWS = 3;
 const GRID_PADDING = 20;
-const CELL_GAP = 50;
+const CELL_GAP = 40;
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_SIZE = (SCREEN_WIDTH - GRID_PADDING * 2 - CELL_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
+const RATIO_BLOCK_HEIGHT = SCREEN_HEIGHT / 3;
+const GRID_AREA_HEIGHT = SCREEN_HEIGHT - RATIO_BLOCK_HEIGHT;
+
+const CELL_SIZE_FROM_WIDTH =
+  (SCREEN_WIDTH - GRID_PADDING * 2 - CELL_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
+const CELL_SIZE_FROM_HEIGHT =
+  (GRID_AREA_HEIGHT - GRID_PADDING * 2 - CELL_GAP * (NUM_ROWS - 1)) / NUM_ROWS;
+const CELL_SIZE = Math.min(CELL_SIZE_FROM_WIDTH, CELL_SIZE_FROM_HEIGHT);
 
 type GridItem = { key: string; sticker: OwnedSticker };
 
@@ -67,6 +78,18 @@ export default function BadgeWallScreen() {
     [stickers]
   );
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        gestureState.dx > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > 80 && Math.abs(gestureState.dy) < 60) {
+          router.back();
+        }
+      },
+    })
+  ).current;
+
   function handleStickerPress(sticker: OwnedSticker) {
     const archetype = getArchetype(sticker.sticker.slug);
     Alert.alert(sticker.sticker.name, archetype?.description ?? 'A basketball sticker.');
@@ -89,13 +112,7 @@ export default function BadgeWallScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </Pressable>
-      </View>
-
+    <SafeAreaView style={styles.safeArea} {...panResponder.panHandlers}>
       <FlatList
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.gridContent}
@@ -132,28 +149,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  topBar: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  backButton: {
-    paddingVertical: 10,
-  },
-  backButtonText: {
-    color: '#111827',
-    fontSize: 14,
-    fontWeight: '800',
-  },
   ratioBlock: {
-    alignItems: 'center',
-    gap: 4,
-    paddingBottom: 28,
-    paddingTop: 16,
+    gap: 8,
+    height: RATIO_BLOCK_HEIGHT,
+    justifyContent: 'flex-start',
+    paddingTop:0,
+    alignItems:'center'
   },
   ratioText: {
     color: '#111827',
-    fontSize: 44,
+    fontSize: 200,
     fontWeight: '800',
   },
   ratioLabel: {

@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { isAxiosError } from 'axios';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -28,8 +29,14 @@ export default function ProfileScreen() {
       setIsLoading(true);
       const user = await getCurrentUser();
       setProfile(user);
-    } catch {
-      router.replace('/login');
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 401) {
+        router.replace('/login');
+        return;
+      }
+      // Transient/network error (e.g. ngrok blip): don't treat it as a
+      // logout. Leave the user on the loading state instead of bouncing
+      // them out of an otherwise-valid session.
     } finally {
       setIsLoading(false);
     }
