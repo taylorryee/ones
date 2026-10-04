@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { router } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -42,6 +43,13 @@ export default function BadgeWallScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stickers, setStickers] = useState<OwnedSticker[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fontsLoaded, fontError] = useFonts({
+    OneSan: require('../assets/oneSan.ttf'),
+  });
+  
+  const [fontTest, fontTestError] = useFonts({
+    OneSanTest: require('../assets/oneSanTest.ttf'),
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -103,7 +111,7 @@ export default function BadgeWallScreen() {
     );
   }
 
-  if (isLoading || !profile) {
+  if (isLoading || !profile || (!fontsLoaded && !fontError)) {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" />
@@ -125,8 +133,13 @@ export default function BadgeWallScreen() {
         }
         ListHeaderComponent={
           <View style={styles.ratioBlock}>
-            <Text style={styles.ratioText}>
-              {profile.wins}/{profile.losses}
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.1}
+              numberOfLines={1}
+              style={styles.ratioText}>
+              {/* {profile.wins}/{profile.losses} */}
+              2/3
             </Text>
           </View>
         }
@@ -152,14 +165,16 @@ const styles = StyleSheet.create({
   ratioBlock: {
     gap: 8,
     height: RATIO_BLOCK_HEIGHT,
-    justifyContent: 'flex-start',
-    paddingTop:0,
-    alignItems:'center'
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
   },
   ratioText: {
     color: '#111827',
+    fontFamily: 'OneSanTest',
     fontSize: 200,
-    fontWeight: '800',
+    maxWidth: '100%',
+    textAlign: 'center',
   },
   ratioLabel: {
     color: '#6B7280',
