@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, PanResponder, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getCurrentUser } from '@/services/auth';
 
@@ -28,7 +27,7 @@ export default function QrCodeScreen() {
   ).current;
 
   return (
-    <SafeAreaView style={styles.safeArea} {...swipeDownResponder.panHandlers}>
+    <View style={styles.safeArea} {...swipeDownResponder.panHandlers}>
       <View style={styles.container}>
         {qrCode ? (
           <QRCode size={260} value={qrCode} />
@@ -36,7 +35,7 @@ export default function QrCodeScreen() {
           <ActivityIndicator size="large" />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

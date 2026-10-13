@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Basketball } from '@/components/Basketball';
 import { StickerArt } from '@/components/StickerArt';
@@ -217,14 +216,14 @@ export default function BallEditorScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <View style={styles.centered}>
         <ActivityIndicator size="large" />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} onLayout={handleContainerLayout}>
+    <View style={styles.safeArea} onLayout={handleContainerLayout}>
       <View style={styles.header}>
         <Text style={styles.title}>Ball editor</Text>
         <Text style={styles.status}>{ownedSticker ? status : 'No sticker to place'}</Text>
@@ -257,7 +256,7 @@ export default function BallEditorScreen() {
           <StickerArt slug={ownedSticker.sticker.slug} />
         </View>
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 

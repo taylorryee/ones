@@ -1,7 +1,7 @@
 import { isAxiosError } from 'axios';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ArchetypeQuiz } from '@/components/ArchetypeQuiz';
 import type { ArchetypeSlug } from '@/constants/archetypes';
@@ -66,7 +66,7 @@ export default function LoginScreen() {
 
   if (step === 'quiz') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.safeArea}>
         <View style={styles.container}>
           <ArchetypeQuiz
             errorMessage={message}
@@ -75,12 +75,12 @@ export default function LoginScreen() {
             onComplete={handleQuizComplete}
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>ONES</Text>
@@ -123,7 +123,7 @@ export default function LoginScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

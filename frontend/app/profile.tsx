@@ -3,7 +3,6 @@ import { isAxiosError } from 'axios';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Basketball } from '@/components/Basketball';
 import { StickerArt } from '@/components/StickerArt';
@@ -91,16 +90,16 @@ export default function ProfileScreen() {
 
   if (isLoading || !profile) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <View style={styles.centered}>
         <ActivityIndicator size="large" />
-      </SafeAreaView>
+      </View>
     );
   }
 
   const archetype = profile.archetype_slug ? getArchetype(profile.archetype_slug) : null;
 
   return (
-    <SafeAreaView style={styles.safeArea} {...swipeUpResponder.panHandlers}>
+    <View style={styles.safeArea} {...swipeUpResponder.panHandlers}>
       <View style={styles.topBar}>
         <Pressable onPress={() => router.push('/test-challenge')} style={styles.challengeButton}>
           <Text style={styles.challengeButtonText}>Challenge</Text>
@@ -142,7 +141,7 @@ export default function ProfileScreen() {
           width={300}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
