@@ -12,10 +12,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
+import FlameIcon from '@/assets/backdrops/testFlame.svg';
 import SeparatingLine from '@/assets/seperating_line (Stroke).svg';
 import StickerPopupFrame from '@/assets/sticker_popup (Stroke).svg';
-import { useContentSize } from '@/components/ScreenBorder';
+import { SCREEN_BACKGROUND, useContentInset, useContentSize } from '@/components/ScreenBorder';
 import { StickerArt } from '@/components/StickerArt';
 import { getArchetype } from '@/constants/archetypes';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
@@ -25,14 +27,24 @@ const NUM_COLUMNS = 2;
 const NUM_ROWS = 3;
 const GRID_PADDING = 20;
 const CELL_GAP = 40;
+// Space between the separator line and the first row of badges, inside the scroll area.
+const GRID_TOP_GAP = 16;
 
 // The sticker popup is shown in a Modal, which covers the whole window rather than the framed area.
 const WINDOW_WIDTH = Dimensions.get('window').width;
 
 const RATIO_BASE_FONT_SIZE = 200;
 
+const FLAME_HEIGHT = 60;
+const FLAME_WIDTH = (FLAME_HEIGHT * 51) / 57; // matches the testFlame.svg viewBox
+
 // Sizes for everything drawn inside the screen border, based on the framed content area.
-function getWallLayout(width: number, height: number) {
+// The screen draws edge to edge inside the frame, so `inset` is the space to the safe content area.
+function getWallLayout(
+  width: number,
+  height: number,
+  inset: { top: number; right: number; bottom: number; left: number }
+) {
   const ratioBlockHeight = height / 3;
   const gridAreaHeight = height - ratioBlockHeight;
   const cellSizeFromWidth =
@@ -45,12 +57,35 @@ function getWallLayout(width: number, height: number) {
     cellSize: Math.min(cellSizeFromWidth, cellSizeFromHeight),
     // Slightly under the real available width so rounding never pushes the text into ellipsis.
     ratioMaxWidth: width - GRID_PADDING * 2 - 8,
-    separatorWidth: width,
-    separatorHeight: (width * 36) / 516, // matches the seperating_line.svg viewBox
+    // Runs under the border on both sides so its ends are hidden by the line.
+    separatorWidth: width + inset.left + inset.right,
+    separatorHeight: ((width + inset.left + inset.right) * 36) / 516, // matches the seperating_line.svg viewBox
+    paddingTop: inset.top,
+    paddingLeft: inset.left + GRID_PADDING,
+    paddingRight: inset.right + GRID_PADDING,
+    gridPaddingBottom: inset.bottom + 40,
   };
 }
 
 type GridItem = { key: string; sticker: OwnedSticker };
+
+// Everything above the bottom edge of the separator line, in the seperating_line.svg viewBox.
+// The lower edge is copied from that file's path (from its right end cap to its left end).
+const SEPARATOR_MASK_PATH =
+  'M516 0V11.302H515.311C515.989 12.5047 515.563 14.0302 514.36 14.7082C513.158 15.3859 511.633 14.9605 510.955 13.758C509.753 11.6261 508.947 10.3298 507.694 9.61838C496.137 8.1213 455.816 5.60802 410.943 5.00314C402.186 6.5735 392.44 9.87902 381.541 13.049C370.666 16.2118 358.845 19.167 346.506 19.7102C315.549 21.0727 279.427 25.9708 253.137 31.5549C239.256 34.5032 221.314 37.7406 194.146 34.0129C180.509 32.1419 169.509 30.6886 161.005 29.4406C152.539 28.1984 146.372 27.1366 142.464 26.0285C136.872 24.443 125.121 23.155 108.433 22.2961C91.8434 21.4423 70.6232 21.0209 46.2695 21.0891C14.4902 21.178 2.78656 21.1779 2.5 21.1779C1.11929 21.1779 0 20.0587 0 18.6779V0Z';
+
+// Drawn over the top of the badge grid: hides badges above the line's wobbly bottom edge, so they
+// scroll right up to the line everywhere instead of stopping at its lowest point.
+function SeparatorOverlay({ width, height }: { width: number; height: number }) {
+  return (
+    <View pointerEvents="none" style={[styles.separatorOverlay, { height, width }]}>
+      <Svg height={height} style={StyleSheet.absoluteFill} viewBox="0 0 516 36" width={width}>
+        <Path d={SEPARATOR_MASK_PATH} fill={SCREEN_BACKGROUND} />
+      </Svg>
+      <SeparatingLine height={height} width={width} />
+    </View>
+  );
+}
 
 // Keeps the base font size and lets the text grow wider with each character.
 // If it would run off the screen, the size is reduced by the smallest amount that fits.
@@ -175,9 +210,10 @@ export default function BadgeWallScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSticker, setSelectedSticker] = useState<OwnedSticker | null>(null);
   const contentSize = useContentSize();
+  const contentInset = useContentInset();
   const layout = useMemo(
-    () => getWallLayout(contentSize.width, contentSize.height),
-    [contentSize]
+    () => getWallLayout(contentSize.width, contentSize.height, contentInset),
+    [contentSize, contentInset]
   );
 
   useFocusEffect(
@@ -244,37 +280,50 @@ export default function BadgeWallScreen() {
 
   return (
     <View style={styles.safeArea} {...panResponder.panHandlers}>
-      <FlatList
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.gridContent}
-        data={data}
-        keyExtractor={(item) => item.key}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No stickers yet. Win a game to earn your first.</Text>
-          </View>
-        }
-        ListHeaderComponent={
-          <>
-            <View style={[styles.ratioBlock, { height: layout.ratioBlockHeight }]}>
-              {/* {profile.wins}/{profile.losses} */}
-              <RatioText maxWidth={layout.ratioMaxWidth}>12W /13L </RatioText>
+      {/* Fixed header: only the badge grid below scrolls. */}
+      <View
+        style={{
+          paddingLeft: layout.paddingLeft,
+          paddingRight: layout.paddingRight,
+          paddingTop: layout.paddingTop,
+        }}>
+        <View style={[styles.ratioBlock, { height: layout.ratioBlockHeight }]}>
+          {/* {profile.wins}/{profile.losses} */}
+          <RatioText maxWidth={layout.ratioMaxWidth}>12W /13L </RatioText>
+        </View>
+        <View style={styles.nameRow}>
+          <Text adjustsFontSizeToFit minimumFontScale={0.3} numberOfLines={1} style={styles.nameText}>
+            penyee 7
+          </Text>
+          <FlameIcon height={FLAME_HEIGHT} width={FLAME_WIDTH} />
+        </View>
+        {/* <Text style={styles.sectionTitle}>My badges</Text> */}
+      </View>
+      <View style={styles.grid}>
+        <FlatList
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={[
+            styles.gridContent,
+            {
+              paddingBottom: layout.gridPaddingBottom,
+              paddingLeft: layout.paddingLeft,
+              paddingRight: layout.paddingRight,
+              paddingTop: layout.separatorHeight + GRID_TOP_GAP,
+            },
+          ]}
+          data={data}
+          keyExtractor={(item) => item.key}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No stickers yet. Win a game to earn your first.</Text>
             </View>
-            <Text adjustsFontSizeToFit minimumFontScale={0.3} numberOfLines={1} style={styles.nameText}>
-              penyee 7
-            </Text>
-            <SeparatingLine
-              height={layout.separatorHeight}
-              style={styles.separator}
-              width={layout.separatorWidth}
-            />
-            <Text style={styles.sectionTitle}>My badges</Text>
-          </>
-        }
-        numColumns={NUM_COLUMNS}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-      />
+          }
+          numColumns={NUM_COLUMNS}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+        />
+        <SeparatorOverlay height={layout.separatorHeight} width={layout.separatorWidth} />
+      </View>
       <Modal
         animationType="fade"
         onRequestClose={() => setSelectedSticker(null)}
@@ -308,24 +357,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  grid: {
+    flex: 1,
+  },
   ratioBlock: {
     gap: 8,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
+    marginTop:-50
+  },
+  nameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 24,
+    marginTop: -120,
   },
   nameText: {
     color: '#111827',
+    // Shrinks the name (via adjustsFontSizeToFit) rather than pushing the flame off screen.
+    flexShrink: 1,
     fontFamily: 'OneSanTest2',
     fontSize: 75,
-    marginBottom: 24,
     textAlign: 'center',
-    marginTop:-120
-  },
-  separator: {
-    // Cancels the list's horizontal padding so the line spans edge to edge.
-    marginHorizontal: -GRID_PADDING,
-    marginBottom: 16,
   },
   sectionTitle: {
     color: '#111827',
@@ -402,8 +458,11 @@ const styles = StyleSheet.create({
   },
   gridContent: {
     flexGrow: 1,
-    paddingBottom: 40,
-    paddingHorizontal: GRID_PADDING,
+  },
+  separatorOverlay: {
+    left: 0,
+    position: 'absolute',
+    top: 0,
   },
   row: {
     gap: CELL_GAP,
