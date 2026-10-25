@@ -1,25 +1,44 @@
 import type { CarouselCard } from '@/components/CardCarousel';
+import { StatsCard } from '@/components/cards/StatsCard';
 import { TextCard } from '@/components/cards/TextCard';
+import type { BadgeWallContent, Quote } from '@/services/cards';
 
-// The cards that rotate at the bottom of the badge wall, in order. To add one, write a component
-// in this folder that fills the size it's given (or reuse TextCard) and add an entry here.
-export const BADGE_WALL_CARDS: CarouselCard[] = [
-  {
-    key: 'quote',
-    render: (size) => (
-      <TextCard
-        body="I've failed over and over and over again in my life. And that is why I succeed. — Michael Jordan"
-        size={size}
-        title="Quote of the day"
-      />
-    ),
-  },
-  {
-    key: 'weekly-stats',
-    render: (size) => <TextCard body="Coming soon" size={size} title="Weekly stats" />,
-  },
-  {
-    key: 'hoop-sessions',
-    render: (size) => <TextCard body="Coming soon" size={size} title="Hoop sessions" />,
-  },
-];
+// Shown until the day's quote has loaded, and when it can't be.
+const FALLBACK_QUOTE: Quote = {
+  chapter: 1,
+  verse: 1,
+  text: "I've failed over and over and over again in my life. And that is why I succeed.",
+  author: 'Michael Jordan',
+};
+
+// The cards that rotate at the bottom of the badge wall, in order, filled from `content` (null
+// until it has loaded). To add one, write a component in this folder that fills the size it's
+// given (or reuse TextCard), add an entry here and, if it needs data from the server, a field to
+// BadgeWallContent in services/cards.ts and backend/schemas/cards.py.
+export function badgeWallCards(content: BadgeWallContent | null): CarouselCard[] {
+  const quote = content?.quote ?? FALLBACK_QUOTE;
+  return [
+    {
+      key: 'quote',
+      render: (size) => (
+        <TextCard
+          body={`${quote.text} — ${quote.author}`}
+          size={size}
+          title={`ONES ${quote.chapter}:${quote.verse}`}
+        />
+      ),
+    },
+    {
+      key: 'stats',
+      render: (size) => <StatsCard size={size} stats={content?.stats} />,
+    },
+    {
+      key: 'tournaments',
+      render: (size) => <TextCard body="Coming soon" size={size} title="Tournaments" />,
+    },
+    {
+      key: 'hoop-sessions',
+      render: (size) => <TextCard body="Coming soon" size={size} title="Hoop sessions" />,
+    },
+  ];
+}

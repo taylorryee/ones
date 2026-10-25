@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,15 @@ def create_match(
     created = service.create_match(db, match, current_user)
 
     return created
+
+
+# Times only, so the app can count games in the player's own months and days.
+@router.get("/me/played", response_model=list[datetime])
+def get_played_times(
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.get_played_times(db, current_user)
 
 
 @router.get("/player/{player_id}", response_model=list[MatchRead])

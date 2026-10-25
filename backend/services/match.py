@@ -85,6 +85,21 @@ def get_match(db: Session, match_id: int):
     return db_match
 
 
+# When each of the player's confirmed matches was confirmed, newest first.
+def get_played_times(db: Session, player: Player):
+    rows = (
+        db.query(Match.confirmed_at)
+        .filter(
+            Match.status == "confirmed",
+            (Match.playerOne_id == player.id) | (Match.playerTwo_id == player.id),
+        )
+        .order_by(Match.confirmed_at.desc())
+        .all()
+    )
+
+    return [row.confirmed_at for row in rows]
+
+
 def get_player_matches(db: Session, player_id: int):
     player = db.query(Player).filter(Player.id == player_id).first()
 

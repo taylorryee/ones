@@ -1,5 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  Animated,
+  Easing,
+  PanResponder,
+  StyleSheet,
+  View,
+  type PanResponderGestureState,
+} from 'react-native';
 
 import { ROTATINGCARD_BORDER_INSET, RotatingcardBorder } from '@/components/RotatingcardBorder';
 import type { Size } from '@/components/skeleton';
@@ -15,13 +22,22 @@ export type CarouselCard = {
 // A slide starts every CARD_INTERVAL and takes CARD_SLIDE_DURATION of it.
 const CARD_INTERVAL = 5000;
 const CARD_SLIDE_DURATION = 1800;
+// A swipe further than this share of a card, or faster than this (pt per ms), moves one card;
+// a shorter, slower one springs back. Either way the card settles in SNAP_DURATION.
+const SWIPE_DISTANCE = 0.2;
+const SWIPE_VELOCITY = 0.3;
+const SNAP_DURATION = 300;
 
 const INSET = ROTATINGCARD_BORDER_INSET;
 
-// Slides to the next card every CARD_INTERVAL, looping forever. Each card takes a whole frame
-// width (`pitch`) and starts `inset` into it, so the next one comes in from under the right of the
-// border as the last leaves under the left. Only the shown card and the next one are mounted; the
-// row keeps moving left rather than jumping back, so a card is never remounted while visible.
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+// Slides to the next card every CARD_INTERVAL, looping forever, and can be swiped either way.
+// Each card takes a whole frame width (`pitch`) and starts `inset` into it, so the next one comes
+// in from under the right of the border as the last leaves under the left. Only the shown card and
+// its neighbours are mounted; the cards keep moving rather than jumping back to the start, so a
+// card is never remounted while visible. A swipe pauses the timer, which starts again from the
+// card it lands on.
 export function CardCarousel({
   cards,
   size,
@@ -33,14 +49,20 @@ export function CardCarousel({
   inset: number;
   pitch: number;
 }) {
-  // How many slides have happened; the shown card is cards[position % cards.length].
+  // Cards moved past so far, negative after swiping back past the first; the shown card is
+  // cards[position] wrapped round the list.
   const [position, setPosition] = useState(0);
+  const [dragging, setDragging] = useState(false);
   // State rather than a ref so render never reads a ref.
   const [offset] = useState(() => new Animated.Value(0));
   const count = cards.length;
 
   useEffect(() => {
-    // Also puts the row back in place when the size changes.
+    // While dragging, the finger moves the cards.
+    if (dragging) {
+      return;
+    }
+    // Also puts the cards back in place when the size changes.
     offset.setValue(-position * pitch);
     if (count < 2) {
       return;
@@ -62,6 +84,56 @@ export function CardCarousel({
       clearTimeout(timer);
       offset.stopAnimation();
     };
+  }, [count, dragging, offset, pitch, position]);
+
+  // Claims horizontal drags and keeps them until the finger lifts.
+  const panResponder = useMemo(() => {
+    // Never more than one card either way, since only the neighbours are mounted.
+    const min = -(position + 1) * pitch;
+    const max = -(position - 1) * pitch;
+    // Where the cards were when the finger landed; may be part way through an automatic slide.
+    let start = -position * pitch;
+
+    function settle(gesture: PanResponderGestureState) {
+      const from = Math.round((-start / pitch) * 1000) / 1000;
+      const moved = clamp(start + gesture.dx, min, max);
+      let target = Math.round(-moved / pitch);
+      if (gesture.dx < -pitch * SWIPE_DISTANCE || gesture.vx < -SWIPE_VELOCITY) {
+        target = Math.floor(from) + 1;
+      } else if (gesture.dx > pitch * SWIPE_DISTANCE || gesture.vx > SWIPE_VELOCITY) {
+        target = Math.ceil(from) - 1;
+      }
+      target = clamp(target, position - 1, position + 1);
+      Animated.timing(offset, {
+        duration: SNAP_DURATION,
+        easing: Easing.out(Easing.cubic),
+        toValue: -target * pitch,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        // Interrupted only by another drag, which settles the cards itself.
+        if (finished) {
+          setPosition(target);
+          setDragging(false);
+        }
+      });
+    }
+
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        count > 1 && Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderGrant: () => {
+        setDragging(true);
+        offset.stopAnimation((value) => {
+          start = value;
+        });
+      },
+      onPanResponderMove: (_, gesture) => {
+        offset.setValue(clamp(start + gesture.dx, min, max));
+      },
+      onPanResponderRelease: (_, gesture) => settle(gesture),
+      onPanResponderTerminate: (_, gesture) => settle(gesture),
+      onPanResponderTerminationRequest: () => false,
+    });
   }, [count, offset, pitch, position]);
 
   if (count === 0) {
@@ -72,28 +144,29 @@ export function CardCarousel({
     width: Math.max(0, size.width - INSET.left - INSET.right),
     height: Math.max(0, size.height - INSET.top - INSET.bottom),
   };
-  const shown = count < 2 ? [position] : [position, position + 1];
+  const shown = count < 2 ? [position] : [position - 1, position, position + 1];
 
   return (
-    <Animated.View
-      style={{
-        height: size.height,
-        width: pitch,
-        transform: [{ translateX: offset }],
-      }}>
+    <View {...panResponder.panHandlers} style={{ height: size.height, width: pitch }}>
       {shown.map((slot) => {
-        const card = cards[slot % count];
+        const card = cards[((slot % count) + count) % count];
         return (
-          // Keyed by slot, so the shown card stays mounted when the next one becomes current.
-          <View key={slot} style={[styles.card, { left: slot * pitch + inset }]}>
+          // Keyed by slot, so the shown card stays mounted when a neighbour becomes current. Each
+          // card is moved on its own, so it is always inside its own bounds and gets its touches.
+          <Animated.View
+            key={slot}
+            style={[
+              styles.card,
+              { left: inset, transform: [{ translateX: Animated.add(offset, slot * pitch) }] },
+            ]}>
             <RotatingcardBorder height={size.height} width={size.width} />
             <View style={[styles.content, { left: INSET.left, top: INSET.top, ...content }]}>
               {card.render(content)}
             </View>
-          </View>
+          </Animated.View>
         );
       })}
-    </Animated.View>
+    </View>
   );
 }
 

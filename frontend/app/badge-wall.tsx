@@ -1,6 +1,6 @@
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   getWallLayout,
@@ -8,14 +8,16 @@ import {
   SIDE_PADDING,
 } from '@/components/badgeWallLayout';
 import { CardCarousel } from '@/components/CardCarousel';
-import { BADGE_WALL_CARDS } from '@/components/cards/badgeWallCards';
-import { MonthGrid } from '@/components/MonthGrid';
+import { badgeWallCards } from '@/components/cards/badgeWallCards';
+import { MonthPager } from '@/components/MonthPager';
 import { useContentInset, useContentSize } from '@/components/ScreenBorder';
 import { SeparatingLine } from '@/components/SeparatingLine';
 import { StickerArt } from '@/components/StickerArt';
 import { StickerPopup } from '@/components/StickerPopup';
 import { FONT, INK, PAPER } from '@/constants/theme';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
+import { getBadgeWallContent, type BadgeWallContent } from '@/services/cards';
+import { getPlayedTimes } from '@/services/matches';
 import { getStickerInventory, type OwnedSticker } from '@/services/stickers';
 
 type RatioFit = { key: string; fontSize: number; baseline: number | null };
@@ -93,8 +95,10 @@ export default function BadgeWallScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stickers, setStickers] = useState<OwnedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<OwnedSticker | null>(null);
+  const [cardContent, setCardContent] = useState<BadgeWallContent | null>(null);
+  const [playedTimes, setPlayedTimes] = useState<Date[] | null>(null);
   // Not used yet: what tapping a day does hasn't been decided.
-  const [, setSelectedDay] = useState<number | null>(null);
+  const [, setSelectedDay] = useState<Date | null>(null);
   const today = new Date();
   const contentSize = useContentSize();
   const contentInset = useContentInset();
@@ -123,23 +127,29 @@ export default function BadgeWallScreen() {
           }
         });
 
+      // Loaded on its own so a failure here doesn't empty the stickers. If it fails, the cards
+      // keep what they last showed.
+      getBadgeWallContent()
+        .then((content) => {
+          if (isActive) {
+            setCardContent(content);
+          }
+        })
+        .catch(() => {});
+
+      // Also on its own; if it fails, the calendar shows month names without a count.
+      getPlayedTimes()
+        .then((times) => {
+          if (isActive) {
+            setPlayedTimes(times);
+          }
+        })
+        .catch(() => {});
+
       return () => {
         isActive = false;
       };
     }, [])
-  );
-
-  // Created once; state rather than a ref so render never reads a ref.
-  const [panResponder] = useState(() =>
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        gestureState.dx > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx > 80 && Math.abs(gestureState.dy) < 60) {
-          router.back();
-        }
-      },
-    })
   );
 
   function handleStickerPress(sticker: OwnedSticker) {
@@ -150,8 +160,7 @@ export default function BadgeWallScreen() {
 
   return (
     <View
-      style={[styles.screen, { paddingBottom: contentInset.bottom, paddingTop: contentInset.top }]}
-      {...panResponder.panHandlers}>
+      style={[styles.screen, { paddingBottom: contentInset.bottom, paddingTop: contentInset.top }]}>
       <View
         style={{
           height: top.height,
@@ -206,21 +215,14 @@ export default function BadgeWallScreen() {
         </View>
       </View>
       <View style={{ height: middle.height }}>
-        <View
-          style={[
-            styles.calendar,
-            {
-              height: middle.calendar.height,
-              marginTop: middle.calendarTop,
-              paddingLeft: contentInset.left,
-              paddingRight: contentInset.right,
-            },
-          ]}>
-          <MonthGrid
-            height={middle.calendar.height}
+        <View style={{ marginTop: middle.calendarTop }}>
+          <MonthPager
+            inset={contentInset.left}
             month={today.getMonth()}
             onPressDay={setSelectedDay}
-            width={middle.calendar.width}
+            pitch={layout.frameWidth}
+            playedTimes={playedTimes}
+            size={middle.calendar}
             year={today.getFullYear()}
           />
         </View>
@@ -229,7 +231,7 @@ export default function BadgeWallScreen() {
       <View style={{ height: bottom.height }}>
         <View style={{ marginTop: bottom.cardTop }}>
           <CardCarousel
-            cards={BADGE_WALL_CARDS}
+            cards={badgeWallCards(cardContent)}
             inset={contentInset.left}
             pitch={layout.frameWidth}
             size={bottom.card}
@@ -282,9 +284,6 @@ const styles = StyleSheet.create({
     opacity: 0,
     position: 'absolute',
     width: 10000,
-  },
-  calendar: {
-    justifyContent: 'center',
   },
   separator: {
     left: 0,

@@ -29,7 +29,11 @@ function AppStack() {
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="profile" />
-      <Stack.Screen name="badge-wall" options={{ contentStyle: { backgroundColor: PAPER } }} />
+      {/* No swipe back: horizontal swipes belong to the calendar and the cards. */}
+      <Stack.Screen
+        name="badge-wall"
+        options={{ contentStyle: { backgroundColor: PAPER }, gestureEnabled: false }}
+      />
       {/* iOS 26+ fades scrolling content under the status bar; hide it so badges reach the top line. */}
       <Stack.Screen
         name="badges"
