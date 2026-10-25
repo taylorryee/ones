@@ -46,11 +46,15 @@ When there are multiple valid approaches, prefer the simplest approach that supp
 
 frontend/
 ├── app/                  Expo Router screens
-├── components/           Reusable visual components
+├── components/           Reusable visual components (skeleton.ts: hand-drawn geometry)
 ├── services/             Typed API functions
-├── assets/               Basketball and sticker artwork
+├── assets/               Artwork: skeletons/, stickers/, illustrations/ (see frontend/ART.md)
+├── scripts/art.mjs       Validates the SVGs, writes the generated art/gallery files, creates components for new drawings
 ├── api.ts                Axios client and authentication interceptor
-└── constants/api.ts      Backend URL
+├── constants/api.ts      Backend URL
+└── constants/theme.ts    Shared ink, paper, stroke and font values
+
+Hand-drawn UI follows frontend/ART.md. After changing any SVG in assets/, run `npm run art`.
 
 backend/
 ├── main.py               FastAPI application and router registration

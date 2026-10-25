@@ -1,6 +1,5 @@
-import { useFocusEffect } from '@react-navigation/native';
 import { isAxiosError } from 'axios';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -114,7 +113,7 @@ export default function ProfileScreen() {
         <Text style={styles.rating}>Rating {profile.rating}</Text>
         {archetype && (
           <View style={styles.archetypeBadge}>
-            <View style={[styles.archetypeDot, { backgroundColor: archetype.color }]} />
+            <archetype.icon width={16} height={16} />
             <Text style={styles.archetypeText}>{archetype.name}</Text>
           </View>
         )}
@@ -131,6 +130,14 @@ export default function ProfileScreen() {
         <Pressable onPress={() => router.push('/badge-wall')} style={styles.badgeWallButton}>
           <Text style={styles.badgeWallButtonText}>Badge Wall</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/badges')} style={styles.badgeWallButton}>
+          <Text style={styles.badgeWallButtonText}>Badges</Text>
+        </Pressable>
+        {__DEV__ && (
+          <Pressable onPress={() => router.push('/art-gallery')} style={styles.badgeWallButton}>
+            <Text style={styles.badgeWallButtonText}>Art gallery (dev)</Text>
+          </Pressable>
+        )}
       </View>
 
       <View pointerEvents="none" style={styles.basketball}>
@@ -197,11 +204,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
-  },
-  archetypeDot: {
-    borderRadius: 5,
-    height: 10,
-    width: 10,
   },
   archetypeText: {
     color: '#374151',

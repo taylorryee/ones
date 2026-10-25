@@ -4,12 +4,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
-import { SCREEN_BACKGROUND, ScreenFrame, useContentInset } from '@/components/ScreenBorder';
+import { ScreenFrame, useContentInset } from '@/components/ScreenBorder';
+import { PAPER } from '@/constants/theme';
 
 SplashScreen.preventAutoHideAsync();
 
 // Pads every screen to the area inside the border. Screens that draw right up to the line
-// (badge-wall) turn the padding off and apply useContentInset() themselves.
+// (badge-wall, badges) turn the padding off and apply useContentInset() themselves.
 function AppStack() {
   const inset = useContentInset();
   const padding = {
@@ -22,15 +23,24 @@ function AppStack() {
   return (
     <Stack
       screenOptions={{
-        contentStyle: { backgroundColor: SCREEN_BACKGROUND, ...padding },
+        contentStyle: { backgroundColor: PAPER, ...padding },
         headerShown: false,
       }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="profile" />
-      <Stack.Screen name="badge-wall" options={{ contentStyle: { backgroundColor: SCREEN_BACKGROUND } }} />
+      <Stack.Screen name="badge-wall" options={{ contentStyle: { backgroundColor: PAPER } }} />
+      {/* iOS 26+ fades scrolling content under the status bar; hide it so badges reach the top line. */}
+      <Stack.Screen
+        name="badges"
+        options={{
+          contentStyle: { backgroundColor: PAPER },
+          scrollEdgeEffects: { top: 'hidden' },
+        }}
+      />
       <Stack.Screen name="qr-code" />
       <Stack.Screen name="test-challenge" />
+      <Stack.Screen name="art-gallery" />
     </Stack>
   );
 }
