@@ -1,6 +1,6 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   getWallLayout,
@@ -8,6 +8,8 @@ import {
   SIDE_PADDING,
 } from '@/components/badgeWallLayout';
 import { CardCarousel } from '@/components/CardCarousel';
+import { GlassesGleam } from '@/components/GlassesGleam';
+import { HoopPopup } from '@/components/HoopPopup';
 import { badgeWallCards } from '@/components/cards/badgeWallCards';
 import { MonthPager } from '@/components/MonthPager';
 import { useContentInset, useContentSize } from '@/components/ScreenBorder';
@@ -15,14 +17,14 @@ import { SeparatingLine } from '@/components/SeparatingLine';
 import { StickerArt } from '@/components/StickerArt';
 import { StickerPopup } from '@/components/StickerPopup';
 import { FONT, INK, PAPER } from '@/constants/theme';
-import { useDayFills } from '@/hooks/useDayFills';
+import { dayKey, useDayFills } from '@/hooks/useDayFills';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
 import { getBadgeWallContent, type BadgeWallContent } from '@/services/cards';
 import { getPlayedTimes } from '@/services/matches';
 import { getStickerInventory, type OwnedSticker } from '@/services/stickers';
 
-// Dev only: the test fill button cycles through these.
-const TEST_FILL_COLORS = ['#F97316', '#2563EB', '#16A34A'];
+// The scribble a day is filled with when the player says they hooped.
+const HOOP_FILL_COLOR = '#F97316';
 
 type RatioFit = { key: string; fontSize: number; baseline: number | null };
 
@@ -103,9 +105,8 @@ export default function BadgeWallScreen() {
   const [playedTimes, setPlayedTimes] = useState<Date[] | null>(null);
   // Colored-in calendar days: dayFills.fillDay(date, color) scribbles one in.
   const dayFills = useDayFills();
-  // Not decided yet what tapping a day does; for now it picks the day the dev fill button fills.
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [testFillCount, setTestFillCount] = useState(0);
+  // The day whose "U hoop today?" popup is open.
+  const [askedDay, setAskedDay] = useState<Date | null>(null);
   const today = new Date();
   const contentSize = useContentSize();
   const contentInset = useContentInset();
@@ -159,24 +160,45 @@ export default function BadgeWallScreen() {
     }, [])
   );
 
+  // Vertical only, so it leaves the calendar's and the cards' sideways swipes alone.
+  const swipeUpResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dy) > Math.abs(gesture.dx) && gesture.dy < -10,
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dy < -60) {
+            router.push('/play');
+          }
+        },
+      }),
+    []
+  );
+
   function handleStickerPress(sticker: OwnedSticker) {
     setSelectedSticker(sticker);
   }
 
+  // Asks about days that aren't colored in yet; a filled day does nothing for now.
+  function handleDayPress(date: Date) {
+    if (!dayFills.fills[dayKey(date)]) {
+      setAskedDay(date);
+    }
+  }
+
   const { top, middle, bottom } = layout;
 
-  // Dev only: scribbles in the last tapped day, or today, in the next test color.
-  function handleTestFill() {
-    dayFills.fillDay(
-      selectedDay ?? today,
-      TEST_FILL_COLORS[testFillCount % TEST_FILL_COLORS.length]
-    );
-    setTestFillCount((count) => count + 1);
-  }
-  const testFillDay = selectedDay ?? today;
+  // Shows the first owned stickers until players can choose which ones go here, except the right
+  // slot, which always shows the goat: the owned one when there is one, so it opens its popup.
+  const goat = stickers.find((owned) => owned.sticker.slug === 'goat');
+  const showcase: (OwnedSticker | undefined)[] = stickers
+    .filter((owned) => owned !== goat)
+    .slice(0, SHOWCASE_SLOTS - 1);
+  showcase[SHOWCASE_SLOTS - 1] = goat;
 
   return (
     <View
+      {...swipeUpResponder.panHandlers}
       style={[styles.screen, { paddingBottom: contentInset.bottom, paddingTop: contentInset.top }]}>
       <View
         style={{
@@ -209,12 +231,14 @@ export default function BadgeWallScreen() {
             {
               gap: top.showcaseGap,
               height: top.showcaseHeight,
+              // Out of the side padding, so the outer stickers reach the content edge.
+              marginHorizontal: -SIDE_PADDING,
               marginTop: top.showcaseGap,
             },
           ]}>
-          {/* Shows the first owned stickers until players can choose which ones go here. */}
           {Array.from({ length: SHOWCASE_SLOTS }, (_, index) => {
-            const sticker = stickers[index];
+            const sticker = showcase[index];
+            const isGoatSlot = index === SHOWCASE_SLOTS - 1;
             const isMiddle = index === Math.floor(SHOWCASE_SLOTS / 2);
             const size = {
               height: top.slot,
@@ -223,8 +247,16 @@ export default function BadgeWallScreen() {
             };
             return sticker ? (
               <Pressable key={index} onPress={() => handleStickerPress(sticker)} style={size}>
-                <StickerArt slug={sticker.sticker.slug} />
+                {sticker.sticker.slug === 'thinker' ? (
+                  <GlassesGleam />
+                ) : (
+                  <StickerArt slug={sticker.sticker.slug} />
+                )}
               </Pressable>
+            ) : isGoatSlot ? (
+              <View key={index} style={size}>
+                <StickerArt slug="goat" />
+              </View>
             ) : (
               <View key={index} style={[styles.showcaseSlot, size]} />
             );
@@ -238,7 +270,7 @@ export default function BadgeWallScreen() {
             inset={contentInset.left}
             month={today.getMonth()}
             onFillDrawn={dayFills.finishFill}
-            onPressDay={setSelectedDay}
+            onPressDay={handleDayPress}
             pitch={layout.frameWidth}
             playedTimes={playedTimes}
             size={middle.calendar}
@@ -250,7 +282,7 @@ export default function BadgeWallScreen() {
       <View style={{ height: bottom.height }}>
         <View style={{ marginTop: bottom.cardTop }}>
           <CardCarousel
-            cards={badgeWallCards(cardContent)}
+            cards={badgeWallCards(cardContent, stickers)}
             inset={contentInset.left}
             pitch={layout.frameWidth}
             size={bottom.card}
@@ -258,19 +290,12 @@ export default function BadgeWallScreen() {
         </View>
         <Separator width={layout.frameWidth} />
       </View>
-      {__DEV__ ? (
-        <Pressable
-          onPress={handleTestFill}
-          style={[
-            styles.testFill,
-            { right: contentInset.right + 8, top: contentInset.top + 8 },
-          ]}>
-          <Text style={styles.testFillText}>
-            {`Fill ${testFillDay.getMonth() + 1}/${testFillDay.getDate()}`}
-          </Text>
-        </Pressable>
-      ) : null}
       <StickerPopup onClose={() => setSelectedSticker(null)} sticker={selectedSticker} />
+      <HoopPopup
+        date={askedDay}
+        onClose={() => setAskedDay(null)}
+        onYes={(date) => dayFills.fillDay(date, HOOP_FILL_COLOR)}
+      />
     </View>
   );
 }
@@ -320,16 +345,5 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     top: 0,
-  },
-  testFill: {
-    backgroundColor: INK,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    position: 'absolute',
-  },
-  testFillText: {
-    color: PAPER,
-    fontSize: 12,
   },
 });

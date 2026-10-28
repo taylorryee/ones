@@ -9,7 +9,7 @@ import type { Insets, Size } from './skeleton.ts';
 export const SECTIONS = { top: 0.35, middle: 0.4, bottom: 0.25 };
 // Space between the parts of a section, and below each separator.
 export const SPACE = 8;
-// Space between the content edge and the Elo number and stickers.
+// Space between the content edge and the Elo number. The stickers run past it, out to the edge.
 export const SIDE_PADDING = 20;
 
 const SEPARATOR_HEIGHT = SKELETONS.separator.height;
@@ -23,12 +23,13 @@ const DIGIT_HEIGHT = 0.8;
 const ELO_BASELINE = 0.904;
 const ELO_REFERENCE_WIDTH = 2.28;
 
-// Row of sticker slots under the Elo number. A sticker is this share of the digits' height, so the
-// two always look in proportion.
+// Row of sticker slots under the Elo number. A sticker is at most as tall as the digits, so the
+// two stay in proportion; on most phones the width is what stops the stickers first, so they span
+// the row.
 export const SHOWCASE_SLOTS = 3;
-const SHOWCASE_ELO_RATIO = 0.75;
+const SHOWCASE_ELO_RATIO = 1;
 // Space between stickers, and between the digits and the stickers, as a share of the sticker size.
-const SHOWCASE_GAP_SCALE = 0.2;
+const SHOWCASE_GAP_SCALE = 0.18;
 // The middle slot sits this share of the slot size lower than the outer two, forming a smile.
 const SHOWCASE_SMILE_DIP = 0.25;
 
@@ -101,7 +102,8 @@ export function getWallLayout(content: Size, inset: Insets) {
     0,
     Math.min(
       SHOWCASE_ELO_RATIO * DIGIT_HEIGHT * eloFontSize,
-      innerWidth / (SHOWCASE_SLOTS + SHOWCASE_GAP_SCALE * (SHOWCASE_SLOTS - 1)),
+      // Unlike the Elo, the stickers skip SIDE_PADDING and span the whole content width.
+      content.width / (SHOWCASE_SLOTS + SHOWCASE_GAP_SCALE * (SHOWCASE_SLOTS - 1)),
       (stackRoom - eloHeight) / slotUnit
     )
   );

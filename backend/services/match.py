@@ -16,7 +16,7 @@ def get_elo_win_change(winner_rating: int, loser_rating: int):
     expected_score = 1 / (1 + 10 ** ((loser_rating - winner_rating) / 400))
     return round(ELO_K_FACTOR * (1 - expected_score))
 
-def player_has_active_match(db: Session, player_id: int):
+def get_active_match(db: Session, player_id: int):
     return (
         db.query(Match)
         .filter(
@@ -24,8 +24,10 @@ def player_has_active_match(db: Session, player_id: int):
             (Match.playerOne_id == player_id) | (Match.playerTwo_id == player_id),
         )
         .first()
-        is not None
     )
+
+def player_has_active_match(db: Session, player_id: int):
+    return get_active_match(db, player_id) is not None
 
 def has_player_beaten_opponent_before(db: Session, winner_id: int, loser_id: int, exclude_match_id: int):
     return (

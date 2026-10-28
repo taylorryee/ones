@@ -81,7 +81,7 @@ export default function ProfileScreen() {
         Math.abs(gesture.dy) > Math.abs(gesture.dx) && gesture.dy < -10,
       onPanResponderRelease: (_, gesture) => {
         if (gesture.dy < -60) {
-          router.push('/qr-code');
+          router.push('/play');
         }
       },
     })

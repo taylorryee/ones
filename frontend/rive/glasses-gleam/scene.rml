@@ -1,0 +1,146 @@
+<Rive version="1" kind="fragment">
+    <Artboard defaultStateMachineId="0:7" styleId="0:5" width="115" height="74.3" name="Glasses" id="0:2">
+        <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+
+        <Node x="1.955" y="1.955" scaleX="0.21782" scaleY="0.21782" name="Sticker" id="0:300">
+        <Shape name="Glasses" id="0:20">
+            <PointsPath isClosed="false" name="Path 1" id="0:41">
+                <CubicDetachedVertex x="27.23" y="139.945" inRotation="0.00000" inDistance="0.000" outRotation="2.31985" outDistance="0.403" id="0:42"/>
+                <CubicDetachedVertex x="25.984" y="141.475" inRotation="-0.92311" inDistance="0.918" outRotation="0.00000" outDistance="0.000" id="0:43"/>
+            </PointsPath>
+            <PointsPath isClosed="true" name="Path 2" id="0:44">
+                <CubicDetachedVertex x="25.984" y="141.475" inRotation="-0.70534" inDistance="0.284" outRotation="2.21832" outDistance="5.385" id="0:45"/>
+                <CubicDetachedVertex x="3.887" y="182.592" inRotation="-1.15293" inDistance="26.939" outRotation="1.98865" outDistance="12.745" id="0:46"/>
+                <CubicDetachedVertex x="1.624" y="230.869" inRotation="-1.70562" inDistance="15.641" outRotation="1.43598" outDistance="14.528" id="0:47"/>
+                <CubicDetachedVertex x="22.434" y="266.944" inRotation="-2.17589" inDistance="13.963" outRotation="0.96569" outDistance="9.771" id="0:48"/>
+                <CubicDetachedVertex x="54.2" y="286.226" inRotation="-2.80590" inDistance="13.651" outRotation="0.33572" outDistance="21.524" id="0:49"/>
+                <CubicDetachedVertex x="124.118" y="275.846" inRotation="2.70302" inDistance="21.227" outRotation="-0.43862" outDistance="16.101" id="0:50"/>
+                <CubicDetachedVertex x="152.192" y="250.885" inRotation="2.24391" inDistance="7.876" outRotation="-0.89766" outDistance="13.053" id="0:51"/>
+                <CubicDetachedVertex x="153.348" y="196.575" inRotation="1.27514" inDistance="19.937" outRotation="-1.86645" outDistance="43.609" id="0:52"/>
+                <CubicDetachedVertex x="106.608" y="134.691" inRotation="0.64767" inDistance="19.706" outRotation="-2.49385" outDistance="12.494" id="0:53"/>
+                <CubicDetachedVertex x="54.198" y="124.868" inRotation="0.01069" inDistance="28.356" outRotation="2.89502" outDistance="12.619" id="0:54"/>
+                <CubicDetachedVertex x="26.631" y="140.931" inRotation="-0.67486" inDistance="11.300" outRotation="2.44845" outDistance="0.280" id="0:55"/>
+            </PointsPath>
+            <PointsPath isClosed="false" name="Path 3" id="0:56">
+                <CubicDetachedVertex x="25.984" y="141.475" inRotation="0.00000" inDistance="0.000" outRotation="2.43715" outDistance="2.929" id="0:57"/>
+                <CubicDetachedVertex x="17.858" y="149.358" inRotation="-0.81318" inDistance="5.206" outRotation="0.00000" outDistance="0.000" id="0:58"/>
+            </PointsPath>
+            <PointsPath isClosed="false" name="Path 4" id="0:59">
+                <CubicDetachedVertex x="158.0" y="200.611" inRotation="0.00000" inDistance="0.000" outRotation="-1.13117" outDistance="2.495" id="0:60"/>
+                <CubicDetachedVertex x="172.715" y="182.436" inRotation="2.30817" inDistance="10.016" outRotation="-0.83337" outDistance="10.601" id="0:61"/>
+                <CubicDetachedVertex x="196.101" y="169.172" inRotation="2.98446" inDistance="8.876" outRotation="-0.15711" outDistance="7.120" id="0:62"/>
+                <CubicDetachedVertex x="212.102" y="172.689" inRotation="-2.46463" inDistance="4.012" outRotation="0.86110" outDistance="8.405" id="0:63"/>
+                <CubicDetachedVertex x="225.421" y="194.969" inRotation="-1.98249" inDistance="9.059" outRotation="1.14968" outDistance="2.282" id="0:64"/>
+                <CubicDetachedVertex x="230.0" y="205.868" inRotation="-1.94231" inDistance="7.291" outRotation="0.00000" outDistance="0.000" id="0:65"/>
+            </PointsPath>
+            <PointsPath isClosed="false" name="Path 5" id="0:66">
+                <CubicDetachedVertex x="271.192" y="143.376" inRotation="0.00000" inDistance="0.000" outRotation="2.87065" outDistance="0.467" id="0:67"/>
+                <CubicDetachedVertex x="269.186" y="144.189" inRotation="-0.44469" inDistance="0.967" outRotation="0.00000" outDistance="0.000" id="0:68"/>
+            </PointsPath>
+            <PointsPath isClosed="true" name="Path 6" id="0:69">
+                <CubicDetachedVertex x="269.186" y="144.189" inRotation="-0.82232" inDistance="5.766" outRotation="2.69681" outDistance="4.646" id="0:70"/>
+                <CubicDetachedVertex x="247.887" y="160.005" inRotation="-0.78416" inDistance="12.016" outRotation="2.35745" outDistance="14.586" id="0:71"/>
+                <CubicDetachedVertex x="231.171" y="215.275" inRotation="-1.44007" inDistance="20.037" outRotation="1.70152" outDistance="32.388" id="0:72"/>
+                <CubicDetachedVertex x="240.203" y="271.42" inRotation="-2.00573" inDistance="12.071" outRotation="1.13591" outDistance="19.843" id="0:73"/>
+                <CubicDetachedVertex x="278.522" y="308.248" inRotation="-2.57437" inDistance="21.074" outRotation="0.56721" outDistance="39.471" id="0:74"/>
+                <CubicDetachedVertex x="376.99" y="312.705" inRotation="2.87694" inDistance="9.542" outRotation="-0.26476" outDistance="9.393" id="0:75"/>
+                <CubicDetachedVertex x="402.105" y="290.716" inRotation="2.20622" inDistance="14.567" outRotation="-0.93538" outDistance="14.537" id="0:76"/>
+                <CubicDetachedVertex x="418.83" y="237.38" inRotation="1.70265" inDistance="24.416" outRotation="-1.43898" outDistance="40.604" id="0:77"/>
+                <CubicDetachedVertex x="407.731" y="166.2" inRotation="1.16852" inDistance="16.339" outRotation="-1.97301" outDistance="10.533" id="0:78"/>
+                <CubicDetachedVertex x="377.129" y="135.978" inRotation="0.65868" inDistance="24.417" outRotation="-2.48292" outDistance="21.815" id="0:79"/>
+                <CubicDetachedVertex x="295.252" y="126.159" inRotation="-0.11191" inDistance="17.506" outRotation="2.69160" outDistance="10.907" id="0:80"/>
+                <CubicDetachedVertex x="276.423" y="136.898" inRotation="-0.64312" inDistance="4.204" outRotation="2.44497" outDistance="2.177" id="0:81"/>
+            </PointsPath>
+            <PointsPath isClosed="false" name="Path 7" id="0:82">
+                <CubicDetachedVertex x="269.186" y="144.189" inRotation="0.00000" inDistance="0.000" outRotation="2.31198" outDistance="0.080" id="0:83"/>
+                <CubicDetachedVertex x="269.02" y="144.368" inRotation="-0.81987" inDistance="0.082" outRotation="0.00000" outDistance="0.000" id="0:84"/>
+            </PointsPath>
+            <PointsPath isClosed="false" name="Path 8" id="0:85">
+                <CubicDetachedVertex x="7.906" y="178.875" inRotation="0.00000" inDistance="0.000" outRotation="-1.26862" outDistance="3.171" id="0:86"/>
+                <CubicDetachedVertex x="58.988" y="98.491" inRotation="2.18179" inDistance="64.940" outRotation="-0.95980" outDistance="22.557" id="0:87"/>
+                <CubicDetachedVertex x="105.627" y="43.779" inRotation="2.32066" inDistance="20.320" outRotation="-0.77783" outDistance="31.083" id="0:88"/>
+                <CubicDetachedVertex x="142.025" y="10.697" inRotation="2.50264" inDistance="5.052" outRotation="-0.67093" outDistance="3.071" id="0:89"/>
+                <CubicDetachedVertex x="154.18" y="2.5" inRotation="2.64412" inDistance="7.557" outRotation="0.00000" outDistance="0.000" id="0:90"/>
+            </PointsPath>
+            <PointsPath isClosed="false" name="Path 9" id="0:91">
+                <CubicDetachedVertex x="421.117" y="226.735" inRotation="0.00000" inDistance="0.000" outRotation="-1.53871" outDistance="6.515" id="0:92"/>
+                <CubicDetachedVertex x="439.873" y="150.426" inRotation="1.95345" inDistance="36.483" outRotation="-1.18815" outDistance="48.643" id="0:93"/>
+                <CubicDetachedVertex x="485.083" y="75.882" inRotation="2.38894" inDistance="4.598" outRotation="-0.76096" outDistance="10.721" id="0:94"/>
+                <CubicDetachedVertex x="499.608" y="58.429" inRotation="2.05866" inDistance="5.427" outRotation="-1.02860" outDistance="2.701" id="0:95"/>
+                <CubicDetachedVertex x="507.164" y="48.883" inRotation="2.29442" inDistance="6.884" outRotation="0.00000" outDistance="0.000" id="0:96"/>
+            </PointsPath>
+            <Stroke thickness="5" cap="round" join="round" transformAffectsStroke="false" name="Stroke" id="0:97">
+                <SolidColor colorValue="FF000000" name="Color" id="0:98"/>
+            </Stroke>
+        </Shape>
+
+        <Shape x="-130" y="215" name="Gleam" id="0:30">
+            <PointsPath isClosed="false" name="Thick Streak" id="0:99">
+                <StraightVertex x="-45" y="115" id="0:100"/>
+                <StraightVertex x="45" y="-115" id="0:101"/>
+            </PointsPath>
+            <PointsPath isClosed="false" name="Thin Streak" id="0:102">
+                <StraightVertex x="15" y="115" id="0:103"/>
+                <StraightVertex x="105" y="-115" id="0:104"/>
+            </PointsPath>
+            <Stroke thickness="5" cap="round" join="round" transformAffectsStroke="false" name="Stroke" id="0:105">
+                <SolidColor colorValue="FF000000" name="Color" id="0:106"/>
+            </Stroke>
+            <ClippingShape sourceId="0:40" name="Lens Clip" id="0:107"/>
+        </Shape>
+
+        <Shape name="Lens Mask" id="0:40">
+            <PointsPath isClosed="true" name="Path 2" id="0:108">
+                <CubicDetachedVertex x="25.984" y="141.475" inRotation="-0.70534" inDistance="0.284" outRotation="2.21832" outDistance="5.385" id="0:109"/>
+                <CubicDetachedVertex x="3.887" y="182.592" inRotation="-1.15293" inDistance="26.939" outRotation="1.98865" outDistance="12.745" id="0:110"/>
+                <CubicDetachedVertex x="1.624" y="230.869" inRotation="-1.70562" inDistance="15.641" outRotation="1.43598" outDistance="14.528" id="0:111"/>
+                <CubicDetachedVertex x="22.434" y="266.944" inRotation="-2.17589" inDistance="13.963" outRotation="0.96569" outDistance="9.771" id="0:112"/>
+                <CubicDetachedVertex x="54.2" y="286.226" inRotation="-2.80590" inDistance="13.651" outRotation="0.33572" outDistance="21.524" id="0:113"/>
+                <CubicDetachedVertex x="124.118" y="275.846" inRotation="2.70302" inDistance="21.227" outRotation="-0.43862" outDistance="16.101" id="0:114"/>
+                <CubicDetachedVertex x="152.192" y="250.885" inRotation="2.24391" inDistance="7.876" outRotation="-0.89766" outDistance="13.053" id="0:115"/>
+                <CubicDetachedVertex x="153.348" y="196.575" inRotation="1.27514" inDistance="19.937" outRotation="-1.86645" outDistance="43.609" id="0:116"/>
+                <CubicDetachedVertex x="106.608" y="134.691" inRotation="0.64767" inDistance="19.706" outRotation="-2.49385" outDistance="12.494" id="0:117"/>
+                <CubicDetachedVertex x="54.198" y="124.868" inRotation="0.01069" inDistance="28.356" outRotation="2.89502" outDistance="12.619" id="0:118"/>
+                <CubicDetachedVertex x="26.631" y="140.931" inRotation="-0.67486" inDistance="11.300" outRotation="2.44845" outDistance="0.280" id="0:119"/>
+            </PointsPath>
+            <PointsPath isClosed="true" name="Path 6" id="0:120">
+                <CubicDetachedVertex x="269.186" y="144.189" inRotation="-0.82232" inDistance="5.766" outRotation="2.69681" outDistance="4.646" id="0:121"/>
+                <CubicDetachedVertex x="247.887" y="160.005" inRotation="-0.78416" inDistance="12.016" outRotation="2.35745" outDistance="14.586" id="0:122"/>
+                <CubicDetachedVertex x="231.171" y="215.275" inRotation="-1.44007" inDistance="20.037" outRotation="1.70152" outDistance="32.388" id="0:123"/>
+                <CubicDetachedVertex x="240.203" y="271.42" inRotation="-2.00573" inDistance="12.071" outRotation="1.13591" outDistance="19.843" id="0:124"/>
+                <CubicDetachedVertex x="278.522" y="308.248" inRotation="-2.57437" inDistance="21.074" outRotation="0.56721" outDistance="39.471" id="0:125"/>
+                <CubicDetachedVertex x="376.99" y="312.705" inRotation="2.87694" inDistance="9.542" outRotation="-0.26476" outDistance="9.393" id="0:126"/>
+                <CubicDetachedVertex x="402.105" y="290.716" inRotation="2.20622" inDistance="14.567" outRotation="-0.93538" outDistance="14.537" id="0:127"/>
+                <CubicDetachedVertex x="418.83" y="237.38" inRotation="1.70265" inDistance="24.416" outRotation="-1.43898" outDistance="40.604" id="0:128"/>
+                <CubicDetachedVertex x="407.731" y="166.2" inRotation="1.16852" inDistance="16.339" outRotation="-1.97301" outDistance="10.533" id="0:129"/>
+                <CubicDetachedVertex x="377.129" y="135.978" inRotation="0.65868" inDistance="24.417" outRotation="-2.48292" outDistance="21.815" id="0:130"/>
+                <CubicDetachedVertex x="295.252" y="126.159" inRotation="-0.11191" inDistance="17.506" outRotation="2.69160" outDistance="10.907" id="0:131"/>
+                <CubicDetachedVertex x="276.423" y="136.898" inRotation="-0.64312" inDistance="4.204" outRotation="2.44497" outDistance="2.177" id="0:132"/>
+            </PointsPath>
+        </Shape>
+        </Node>
+
+        <StateMachine name="State Machine 1" id="0:7">
+            <StateMachineLayer name="Layer 1" id="0:8">
+                <AnyState x="200" y="-120" id="0:133"/>
+                <ExitState x="400" y="-120" id="0:134"/>
+                <EntryState id="0:135">
+                    <StateTransition stateToId="0:12" id="0:136"/>
+                </EntryState>
+                <AnimationState x="200" animationId="0:6" id="0:12"/>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <LinearAnimation fps="60" duration="150" loopValue="loop" name="Gleam" id="0:6">
+            <KeyedObject objectId="0:30" id="0:137">
+                <KeyedProperty property="x" id="0:138">
+                    <KeyFrameDouble value="-130" frame="0" interpolationType="cubic" id="0:139">
+                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1" id="0:140"/>
+                    </KeyFrameDouble>
+                    <KeyFrameDouble value="510" frame="40" interpolationType="linear" id="0:141"/>
+                    <KeyFrameDouble value="510" frame="150" interpolationType="linear" id="0:142"/>
+                </KeyedProperty>
+            </KeyedObject>
+        </LinearAnimation>
+    </Artboard>
+</Rive>

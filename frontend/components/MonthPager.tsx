@@ -1,24 +1,36 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  PanResponder,
-  StyleSheet,
-  Text,
-  View,
-  type PanResponderGestureState,
-} from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 
-import { MonthGrid } from '@/components/MonthGrid';
-import type { Size } from '@/components/skeleton';
-import { FONT, INK, PAPER } from '@/constants/theme';
-import type { DayFill } from '@/hooks/useDayFills';
+import { MonthGrid } from "@/components/MonthGrid";
+import type { Size } from "@/components/skeleton";
+import { FONT, INK, PAPER } from "@/constants/theme";
+import type { DayFill } from "@/hooks/useDayFills";
 
-// A swipe further than this share of a month, or faster than this (pt per ms), moves one month;
-// a shorter, slower one springs back. Either way the month settles in SNAP_DURATION.
+// A swipe further than this share of a month, or faster than this (pt per s), moves one month;
+// a shorter, slower one springs back. The spring carries on at the finger's speed and never
+// overshoots, so a flick doesn't brake to a stop and the months never bounce past the border.
 const SWIPE_DISTANCE = 0.2;
-const SWIPE_VELOCITY = 0.3;
-const SNAP_DURATION = 300;
+const SWIPE_VELOCITY = 300;
+const SNAP_SPRING = {
+  damping: 40,
+  mass: 1,
+  overshootClamping: true,
+  stiffness: 320,
+};
+// How far a finger moves sideways before the drag starts, or up and down before it's left alone.
+const DRAG_SLOP = 10;
 // After landing on another month its name fades in, stays, then fades out over the grid.
 const NAME_FADE_IN = 480;
 const NAME_HOLD = 1050;
@@ -29,26 +41,29 @@ const NAME_SCALE = 0.2;
 const PLAYED_SCALE = 0.08;
 
 const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => {
+  "worklet";
+  return Math.min(max, Math.max(min, value));
+};
 
 // The calendar, opening on `year`/`month` (0-based, like Date). Swiping right shows the month
 // before, swiping left comes back, never past `month`. Each month takes a whole frame width
 // (`pitch`) and starts `inset` into it, so months slide in and out from under the border. Only the
-// shown month and its neighbours are mounted. `playedTimes` are the player's confirmed games,
+// shown month and the months next to it are mounted. `playedTimes` are the player's confirmed games,
 // counted under the month's name; null while loading, which leaves the count out. `fills` and
 // `onFillDrawn` come from useDayFills.
 export function MonthPager({
@@ -74,84 +89,94 @@ export function MonthPager({
 }) {
   // Months from `month`: 0 is that month, -1 the one before it.
   const [position, setPosition] = useState(0);
-  // State rather than a ref so render never reads a ref.
-  const [offset] = useState(() => new Animated.Value(0));
-  const [nameOpacity] = useState(() => new Animated.Value(0));
+  // The same, for the gesture, which runs on the UI thread and can't wait for a render.
+  const committed = useSharedValue(0);
+  // Where the months are: -position × pitch once they settle.
+  const offset = useSharedValue(0);
+  // Where the months were when the drag started, less the slop the finger moved to start it.
+  const dragStart = useSharedValue(0);
+  const nameOpacity = useSharedValue(0);
+  // The frame width the months were last placed for.
+  const placedPitch = useRef(pitch);
 
-  // Also puts the months back in place when the size changes.
+  // Puts the months back in place when the size changes. Not on a month change: the month is set
+  // as soon as the finger lifts, while the snap is still sliding it into place.
   useEffect(() => {
-    offset.setValue(-position * pitch);
+    if (placedPitch.current !== pitch) {
+      placedPitch.current = pitch;
+      offset.set(-position * pitch);
+    }
   }, [offset, pitch, position]);
 
-  // Claims horizontal drags and keeps them until the finger lifts.
-  const panResponder = useMemo(() => {
-    // One month back, and one forward unless this is already the latest month.
-    const latest = Math.min(position + 1, 0);
-    const min = -latest * pitch;
-    const max = -(position - 1) * pitch;
-    // Where the months were when the finger landed; may be part way through a snap.
-    let start = -position * pitch;
-
-    function settle(gesture: PanResponderGestureState) {
-      const moved = clamp(start + gesture.dx, min, max);
-      let target = Math.round(-moved / pitch);
-      if (gesture.dx < -pitch * SWIPE_DISTANCE || gesture.vx < -SWIPE_VELOCITY) {
-        target = position + 1;
-      } else if (gesture.dx > pitch * SWIPE_DISTANCE || gesture.vx > SWIPE_VELOCITY) {
-        target = position - 1;
+  // Runs on the UI thread from start to finish, so rendering a newly mounted month on the JS
+  // thread can't stall the drag or the snap.
+  const pan = usePanGesture({
+    activeOffsetX: [-DRAG_SLOP, DRAG_SLOP],
+    failOffsetY: [-DRAG_SLOP, DRAG_SLOP],
+    onActivate: (event) => {
+      // A new swipe clears the last month's name straight away, and catches the months where they
+      // are if they're still sliding.
+      cancelAnimation(nameOpacity);
+      nameOpacity.set(0);
+      cancelAnimation(offset);
+      dragStart.set(offset.get() - event.translationX);
+    },
+    onUpdate: (event) => {
+      // One month back, and one forward unless this is already the latest month.
+      const latest = Math.min(committed.get() + 1, 0);
+      offset.set(
+        clamp(
+          dragStart.get() + event.translationX,
+          -latest * pitch,
+          -(committed.get() - 1) * pitch,
+        ),
+      );
+    },
+    onDeactivate: (event) => {
+      const from = committed.get();
+      const latest = Math.min(from + 1, 0);
+      let target = Math.round(-offset.get() / pitch);
+      if (
+        event.translationX < -pitch * SWIPE_DISTANCE ||
+        event.velocityX < -SWIPE_VELOCITY
+      ) {
+        target = from + 1;
+      } else if (
+        event.translationX > pitch * SWIPE_DISTANCE ||
+        event.velocityX > SWIPE_VELOCITY
+      ) {
+        target = from - 1;
       }
-      target = clamp(target, position - 1, latest);
-      Animated.timing(offset, {
-        duration: SNAP_DURATION,
-        easing: Easing.out(Easing.cubic),
-        toValue: -target * pitch,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        // Interrupted only by another drag, which settles the months itself.
-        if (!finished) {
-          return;
-        }
-        setPosition(target);
-        if (target !== position) {
-          // The hold is the fade-out's delay rather than Animated.delay, so every step runs on
-          // nameOpacity and stopping it in the next swipe cancels the whole sequence. A separate
-          // delay would keep running and its fade-out would cut short the next month's name.
-          Animated.sequence([
-            Animated.timing(nameOpacity, {
-              duration: NAME_FADE_IN,
-              toValue: 1,
-              useNativeDriver: true,
-            }),
-            Animated.timing(nameOpacity, {
-              delay: NAME_HOLD,
-              duration: NAME_FADE_OUT,
-              toValue: 0,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        }
-      });
-    }
+      target = clamp(target, from - 1, latest);
+      // Set straight away rather than when the snap ends, so a swipe that starts while the month
+      // is still sliding in moves on from it instead of landing back on the same month.
+      committed.set(target);
+      scheduleOnRN(setPosition, target);
+      offset.set(
+        withSpring(
+          -target * pitch,
+          { ...SNAP_SPRING, velocity: event.velocityX },
+          (finished) => {
+            // Interrupted only by another drag, which settles the months itself. Stopping
+            // nameOpacity in that drag cancels the whole fade, hold included.
+            if (finished && target !== from) {
+              nameOpacity.set(
+                withSequence(
+                  withTiming(1, { duration: NAME_FADE_IN }),
+                  withDelay(
+                    NAME_HOLD,
+                    withTiming(0, { duration: NAME_FADE_OUT }),
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+      );
+    },
+  });
 
-    return PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-      onPanResponderGrant: () => {
-        // A new swipe clears the last month's name straight away.
-        nameOpacity.stopAnimation();
-        nameOpacity.setValue(0);
-        offset.stopAnimation((value) => {
-          start = value;
-        });
-      },
-      onPanResponderMove: (_, gesture) => {
-        offset.setValue(clamp(start + gesture.dx, min, max));
-      },
-      onPanResponderRelease: (_, gesture) => settle(gesture),
-      onPanResponderTerminate: (_, gesture) => settle(gesture),
-      onPanResponderTerminationRequest: () => false,
-    });
-  }, [nameOpacity, offset, pitch, position]);
+  const nameStyle = useAnimatedStyle(() => ({ opacity: nameOpacity.get() }));
 
   const current = new Date(year, month + position, 1);
   // The year is only named for months outside the latest month's year.
@@ -162,87 +187,134 @@ export function MonthPager({
   // Counted in the phone's time zone, so a game late on the 31st stays in its month.
   const played = playedTimes?.filter(
     (time) =>
-      time.getFullYear() === current.getFullYear() && time.getMonth() === current.getMonth()
+      time.getFullYear() === current.getFullYear() &&
+      time.getMonth() === current.getMonth(),
   ).length;
-  const shown = position < 0 ? [position - 1, position, position + 1] : [position - 1, position];
+  // Two months back are mounted, so a quick run of swipes never slides onto one still rendering.
+  const shown = [position - 2, position - 1, position];
+  if (position < 0) {
+    shown.push(position + 1);
+  }
 
   return (
-    <View {...panResponder.panHandlers} style={{ height: size.height, width: pitch }}>
-      {shown.map((slot) => {
-        // Day 1, so stepping back from e.g. March 31st can't overflow into the wrong month.
-        const first = new Date(year, month + slot, 1);
-        const shownYear = first.getFullYear();
-        const shownMonth = first.getMonth();
-        return (
-          // Keyed by slot, so the shown month stays mounted when a neighbour becomes current.
-          <Animated.View
-            key={slot}
-            style={[
-              styles.month,
-              {
-                height: size.height,
-                left: inset,
-                transform: [{ translateX: Animated.add(offset, slot * pitch) }],
-                width: size.width,
-              },
-            ]}>
-            <MonthGrid
-              fills={fills}
-              height={size.height}
-              month={shownMonth}
-              onFillDrawn={(day) => onFillDrawn?.(new Date(shownYear, shownMonth, day))}
-              onPressDay={(day) => onPressDay(new Date(shownYear, shownMonth, day))}
-              width={size.width}
-              year={shownYear}
-            />
-          </Animated.View>
-        );
-      })}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.name,
-          { height: size.height, left: inset, opacity: nameOpacity, width: size.width },
-        ]}>
-        {/* Sized to the calendar, so it ignores the system text size like the boxes do. */}
-        <Text
-          adjustsFontSizeToFit
-          allowFontScaling={false}
-          numberOfLines={1}
-          style={[styles.nameText, { fontSize: size.height * NAME_SCALE }]}>
-          {name}
-        </Text>
-        {played === undefined ? null : (
+    <GestureDetector gesture={pan}>
+      <View style={{ height: size.height, width: pitch }}>
+        {shown.map((slot) => {
+          // Day 1, so stepping back from e.g. March 31st can't overflow into the wrong month.
+          const first = new Date(year, month + slot, 1);
+          const shownYear = first.getFullYear();
+          const shownMonth = first.getMonth();
+          return (
+            // Keyed by slot, so the shown month stays mounted when a neighbour becomes current.
+            <MonthSlot
+              inset={inset}
+              key={slot}
+              offset={offset}
+              pitch={pitch}
+              size={size}
+              slot={slot}
+            >
+              <MonthGrid
+                fills={fills}
+                height={size.height}
+                month={shownMonth}
+                onFillDrawn={(day) =>
+                  onFillDrawn?.(new Date(shownYear, shownMonth, day))
+                }
+                onPressDay={(day) =>
+                  onPressDay(new Date(shownYear, shownMonth, day))
+                }
+                width={size.width}
+                year={shownYear}
+              />
+            </MonthSlot>
+          );
+        })}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.name,
+            { height: size.height, left: inset, width: size.width },
+            nameStyle,
+          ]}
+        >
+          {/* Sized to the calendar, so it ignores the system text size like the boxes do. */}
           <Text
             adjustsFontSizeToFit
             allowFontScaling={false}
             numberOfLines={1}
-            style={[styles.nameText, { fontSize: size.height * PLAYED_SCALE }]}>
-            {`You hooped ${played} ${played === 1 ? 'time' : 'times'} this month`}
+            style={[styles.nameText, { fontSize: size.height * NAME_SCALE }]}
+          >
+            {name}
           </Text>
-        )}
-      </Animated.View>
-    </View>
+          {played === undefined ? null : (
+            <Text
+              adjustsFontSizeToFit
+              allowFontScaling={false}
+              numberOfLines={1}
+              style={[
+                styles.nameText,
+                { fontSize: size.height * PLAYED_SCALE },
+              ]}
+            >
+              {`You hooped ${played} ${played === 1 ? "time" : "times"} this month`}
+            </Text>
+          )}
+        </Animated.View>
+      </View>
+    </GestureDetector>
+  );
+}
+
+// One month, `slot` months from `month`, placed `slot` frame widths along from the shown month.
+function MonthSlot({
+  slot,
+  offset,
+  pitch,
+  inset,
+  size,
+  children,
+}: {
+  slot: number;
+  offset: SharedValue<number>;
+  pitch: number;
+  inset: number;
+  size: Size;
+  children: ReactNode;
+}) {
+  const slide = useAnimatedStyle(() => ({
+    transform: [{ translateX: offset.get() + slot * pitch }],
+  }));
+  return (
+    <Animated.View
+      style={[
+        styles.month,
+        { height: size.height, left: inset, width: size.width },
+        slide,
+      ]}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   month: {
-    justifyContent: 'center',
-    position: 'absolute',
+    justifyContent: "center",
+    position: "absolute",
     top: 0,
   },
   // Opaque, so the grid is fully hidden while the name shows.
   name: {
-    alignItems: 'center',
+    alignItems: "center",
     backgroundColor: PAPER,
-    justifyContent: 'center',
-    position: 'absolute',
+    justifyContent: "center",
+    position: "absolute",
     top: 0,
   },
   nameText: {
     color: INK,
     fontFamily: FONT,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

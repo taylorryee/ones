@@ -64,11 +64,9 @@ for (const [name, width, height, safeTop, safeBottom] of PHONES) {
       'top section adds up'
     );
     assert.ok(top.slot + top.slotDip <= top.showcaseHeight + 1e-6, 'dipped sticker stays in its row');
-    assert.ok(
-      top.slot * SHOWCASE_SLOTS + top.showcaseGap * (SHOWCASE_SLOTS - 1) <=
-        content.width - SIDE_PADDING * 2 + 1e-6,
-      'stickers fit the width'
-    );
+    const rowWidth = top.slot * SHOWCASE_SLOTS + top.showcaseGap * (SHOWCASE_SLOTS - 1);
+    assert.ok(rowWidth <= content.width + 1e-6, 'stickers fit the width');
+    assert.ok(rowWidth >= content.width - SIDE_PADDING * 2, 'stickers reach past the Elo padding');
 
     const { grid, calendar, calendarTop } = layout.middle;
     assert.ok(grid.width <= calendar.width + 1e-6, 'calendar fits the width');

@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.tayloryee.frontend",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIViewControllerBasedStatusBarAppearance": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -40,7 +43,15 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-status-bar"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Ones uses the camera to scan your opponent's code and start a match.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      ["expo-status-bar", { "hidden": true }]
     ],
     "experiments": {
       "typedRoutes": true,

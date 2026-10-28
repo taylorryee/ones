@@ -33,6 +33,15 @@ def get_played_times(
     return service.get_played_times(db, current_user)
 
 
+# The Play screen polls this so the player who was scanned learns that a match started.
+@router.get("/me/active", response_model=MatchRead | None)
+def get_active_match(
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.get_active_match(db, current_user.id)
+
+
 @router.get("/player/{player_id}", response_model=list[MatchRead])
 def get_player_matches(player_id: int, db: Session = Depends(get_db)):
     matches = service.get_player_matches(db, player_id)

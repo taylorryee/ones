@@ -1,0 +1,7 @@
+name: badge-spin
+logs:
+  file: build/rive.log
+  problems: build/problems.log
+push:
+  projectId: 1977865
+  fileId: 2690316
