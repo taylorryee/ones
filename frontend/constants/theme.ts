@@ -7,10 +7,12 @@ export const INK = 'black';
 export const PAPER = '#F8FAFC';
 
 // Line style in screen points. `width` matches the Figma stroke weight of the frames and
-// lines; `smallWidth` is the lighter line used on small repeated shapes (the day boxes).
+// lines; `smallWidth` is the lighter line used on small repeated shapes (the day boxes);
+// `fillWidth` is the pen that scribbles a box in.
 export const STROKE = {
   width: 5,
   smallWidth: 4,
+  fillWidth: 6,
   linecap: 'round',
   linejoin: 'round',
 } as const;

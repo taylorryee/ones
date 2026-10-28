@@ -4,24 +4,30 @@ import { StyleSheet, Text, View } from 'react-native';
 import { fitMonthGrid } from '@/components/badgeWallLayout';
 import { buildBoxPaths, DayBox } from '@/components/DayBox';
 import { FONT, INK } from '@/constants/theme';
+import { dayKey, type DayFill } from '@/hooks/useDayFills';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 // One month of day boxes, Sunday first, scaled to the largest size that fits `width` × `height`.
 // `month` is 0-based, like Date. Boxes are sized for a six-row month so they keep one size, but the
 // grid is only as tall as this month's rows, so centering it leaves even space above and below.
+// `fills` are the colored-in days from useDayFills.
 export function MonthGrid({
   year,
   month,
   width,
   height,
+  fills,
   onPressDay,
+  onFillDrawn,
 }: {
   year: number;
   month: number;
   width: number;
   height: number;
+  fills?: Record<string, DayFill>;
   onPressDay: (day: number) => void;
+  onFillDrawn?: (day: number) => void;
 }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay();
@@ -56,9 +62,11 @@ export function MonthGrid({
       {Array.from({ length: daysInMonth }, (_, index) => (
         <DayBox
           day={index + 1}
+          fill={fills?.[dayKey(new Date(year, month, index + 1))]}
           // Each day also takes taps on its half of the gaps around it.
           hitSlop={fit.gap / 2}
           key={index + 1}
+          onFillDrawn={onFillDrawn}
           onPress={onPressDay}
           paths={boxPaths}
           size={fit.box}

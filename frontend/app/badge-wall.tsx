@@ -15,10 +15,14 @@ import { SeparatingLine } from '@/components/SeparatingLine';
 import { StickerArt } from '@/components/StickerArt';
 import { StickerPopup } from '@/components/StickerPopup';
 import { FONT, INK, PAPER } from '@/constants/theme';
+import { useDayFills } from '@/hooks/useDayFills';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
 import { getBadgeWallContent, type BadgeWallContent } from '@/services/cards';
 import { getPlayedTimes } from '@/services/matches';
 import { getStickerInventory, type OwnedSticker } from '@/services/stickers';
+
+// Dev only: the test fill button cycles through these.
+const TEST_FILL_COLORS = ['#F97316', '#2563EB', '#16A34A'];
 
 type RatioFit = { key: string; fontSize: number; baseline: number | null };
 
@@ -97,8 +101,11 @@ export default function BadgeWallScreen() {
   const [selectedSticker, setSelectedSticker] = useState<OwnedSticker | null>(null);
   const [cardContent, setCardContent] = useState<BadgeWallContent | null>(null);
   const [playedTimes, setPlayedTimes] = useState<Date[] | null>(null);
-  // Not used yet: what tapping a day does hasn't been decided.
-  const [, setSelectedDay] = useState<Date | null>(null);
+  // Colored-in calendar days: dayFills.fillDay(date, color) scribbles one in.
+  const dayFills = useDayFills();
+  // Not decided yet what tapping a day does; for now it picks the day the dev fill button fills.
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [testFillCount, setTestFillCount] = useState(0);
   const today = new Date();
   const contentSize = useContentSize();
   const contentInset = useContentInset();
@@ -157,6 +164,16 @@ export default function BadgeWallScreen() {
   }
 
   const { top, middle, bottom } = layout;
+
+  // Dev only: scribbles in the last tapped day, or today, in the next test color.
+  function handleTestFill() {
+    dayFills.fillDay(
+      selectedDay ?? today,
+      TEST_FILL_COLORS[testFillCount % TEST_FILL_COLORS.length]
+    );
+    setTestFillCount((count) => count + 1);
+  }
+  const testFillDay = selectedDay ?? today;
 
   return (
     <View
@@ -217,8 +234,10 @@ export default function BadgeWallScreen() {
       <View style={{ height: middle.height }}>
         <View style={{ marginTop: middle.calendarTop }}>
           <MonthPager
+            fills={dayFills.fills}
             inset={contentInset.left}
             month={today.getMonth()}
+            onFillDrawn={dayFills.finishFill}
             onPressDay={setSelectedDay}
             pitch={layout.frameWidth}
             playedTimes={playedTimes}
@@ -239,6 +258,18 @@ export default function BadgeWallScreen() {
         </View>
         <Separator width={layout.frameWidth} />
       </View>
+      {__DEV__ ? (
+        <Pressable
+          onPress={handleTestFill}
+          style={[
+            styles.testFill,
+            { right: contentInset.right + 8, top: contentInset.top + 8 },
+          ]}>
+          <Text style={styles.testFillText}>
+            {`Fill ${testFillDay.getMonth() + 1}/${testFillDay.getDate()}`}
+          </Text>
+        </Pressable>
+      ) : null}
       <StickerPopup onClose={() => setSelectedSticker(null)} sticker={selectedSticker} />
     </View>
   );
@@ -289,5 +320,16 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     top: 0,
+  },
+  testFill: {
+    backgroundColor: INK,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    position: 'absolute',
+  },
+  testFillText: {
+    color: PAPER,
+    fontSize: 12,
   },
 });

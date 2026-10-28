@@ -12,6 +12,7 @@ import {
 import { MonthGrid } from '@/components/MonthGrid';
 import type { Size } from '@/components/skeleton';
 import { FONT, INK, PAPER } from '@/constants/theme';
+import type { DayFill } from '@/hooks/useDayFills';
 
 // A swipe further than this share of a month, or faster than this (pt per ms), moves one month;
 // a shorter, slower one springs back. Either way the month settles in SNAP_DURATION.
@@ -19,7 +20,7 @@ const SWIPE_DISTANCE = 0.2;
 const SWIPE_VELOCITY = 0.3;
 const SNAP_DURATION = 300;
 // After landing on another month its name fades in, stays, then fades out over the grid.
-const NAME_FADE_IN = 500;
+const NAME_FADE_IN = 480;
 const NAME_HOLD = 1050;
 const NAME_FADE_OUT = 900;
 // Name size as a share of the calendar height; long names shrink to fit the width.
@@ -48,7 +49,8 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 // before, swiping left comes back, never past `month`. Each month takes a whole frame width
 // (`pitch`) and starts `inset` into it, so months slide in and out from under the border. Only the
 // shown month and its neighbours are mounted. `playedTimes` are the player's confirmed games,
-// counted under the month's name; null while loading, which leaves the count out.
+// counted under the month's name; null while loading, which leaves the count out. `fills` and
+// `onFillDrawn` come from useDayFills.
 export function MonthPager({
   year,
   month,
@@ -56,7 +58,9 @@ export function MonthPager({
   inset,
   pitch,
   playedTimes,
+  fills,
   onPressDay,
+  onFillDrawn,
 }: {
   year: number;
   month: number;
@@ -64,7 +68,9 @@ export function MonthPager({
   inset: number;
   pitch: number;
   playedTimes: Date[] | null;
+  fills?: Record<string, DayFill>;
   onPressDay: (date: Date) => void;
+  onFillDrawn?: (date: Date) => void;
 }) {
   // Months from `month`: 0 is that month, -1 the one before it.
   const [position, setPosition] = useState(0);
@@ -107,14 +113,17 @@ export function MonthPager({
         }
         setPosition(target);
         if (target !== position) {
+          // The hold is the fade-out's delay rather than Animated.delay, so every step runs on
+          // nameOpacity and stopping it in the next swipe cancels the whole sequence. A separate
+          // delay would keep running and its fade-out would cut short the next month's name.
           Animated.sequence([
             Animated.timing(nameOpacity, {
               duration: NAME_FADE_IN,
               toValue: 1,
               useNativeDriver: true,
             }),
-            Animated.delay(NAME_HOLD),
             Animated.timing(nameOpacity, {
+              delay: NAME_HOLD,
               duration: NAME_FADE_OUT,
               toValue: 0,
               useNativeDriver: true,
@@ -178,8 +187,10 @@ export function MonthPager({
               },
             ]}>
             <MonthGrid
+              fills={fills}
               height={size.height}
               month={shownMonth}
+              onFillDrawn={(day) => onFillDrawn?.(new Date(shownYear, shownMonth, day))}
               onPressDay={(day) => onPressDay(new Date(shownYear, shownMonth, day))}
               width={size.width}
               year={shownYear}

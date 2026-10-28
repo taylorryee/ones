@@ -11,6 +11,7 @@ import { SEPARATOR_HEIGHT, SeparatingLine } from '@/components/SeparatingLine';
 import { StickerArt } from '@/components/StickerArt';
 import { ARCHETYPES } from '@/constants/archetypes';
 import { FONT } from '@/constants/theme';
+import { dayKey, useDayFills } from '@/hooks/useDayFills';
 
 // Dev only: every hand-drawn component at its smallest, typical and largest sizes, so one
 // screenshot per device shows line weight, clipping and corner shape. Components created by
@@ -27,12 +28,16 @@ const GALLERY_SCALES = [0.75, 1, 1.25];
 // the sides shrink. The popup draws the frame with a corner size of 55.
 const POPUP_WIDTHS = [140, 264];
 const POPUP = SKELETONS.popupBorder;
+// Tapping a scribble demo box cycles it through these.
+const FILL_COLORS = ['#F97316', '#2563EB', '#16A34A'];
 
 function Outlined({ children }: { children: React.ReactNode }) {
   return <View style={styles.outline}>{children}</View>;
 }
 
 export default function ArtGalleryScreen() {
+  const dayFills = useDayFills();
+
   if (!__DEV__) {
     return <Redirect href="/" />;
   }
@@ -76,6 +81,36 @@ export default function ArtGalleryScreen() {
                 </View>
               </Outlined>
             ))}
+          </View>
+        );
+      })}
+
+      <Text style={styles.heading}>Scribble fill (tap a box)</Text>
+      {BOX_SIZES.map((size, row) => {
+        const paths = buildBoxPaths(size);
+        return (
+          <View key={size} style={styles.row}>
+            <Text style={styles.label}>{size}</Text>
+            {[1, 2, 3, 4].map((day) => {
+              // A made-up date per box, so every box has its own fill.
+              const date = new Date(2000, row, day);
+              const fill = dayFills.fills[dayKey(date)];
+              const color = FILL_COLORS[(FILL_COLORS.indexOf(fill?.color ?? '') + 1) % 3];
+              return (
+                <Outlined key={day}>
+                  <View style={{ height: size * BOX_RATIO, width: size }}>
+                    <DayBox
+                      day={day}
+                      fill={fill}
+                      onFillDrawn={() => dayFills.finishFill(date)}
+                      onPress={() => dayFills.fillDay(date, color)}
+                      paths={paths}
+                      size={size}
+                    />
+                  </View>
+                </Outlined>
+              );
+            })}
           </View>
         );
       })}

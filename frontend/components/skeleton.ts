@@ -150,6 +150,22 @@ function cubicAt(p0: Point, c1: Point, c2: Point, p1: Point, t: number): Point {
   ];
 }
 
+// Length of the drawn curve, summed over short straight pieces of every segment.
+export function pathLength(paths: Point[][]): number {
+  let length = 0;
+  for (const path of paths) {
+    for (let i = 0; i + 3 < path.length; i += 3) {
+      let previous = path[i];
+      for (let step = 1; step <= 16; step++) {
+        const point = cubicAt(path[i], path[i + 1], path[i + 2], path[i + 3], step / 16);
+        length += Math.hypot(point[0] - previous[0], point[1] - previous[1]);
+        previous = point;
+      }
+    }
+  }
+  return length;
+}
+
 // Bounds of the drawn curve (not its control points), sampled along every segment.
 export function boundsOf(paths: Point[][]) {
   let minX = Infinity;
