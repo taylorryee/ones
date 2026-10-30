@@ -3,20 +3,24 @@ import {
   Animated,
   Easing,
   PanResponder,
+  Pressable,
   StyleSheet,
   View,
   type PanResponderGestureState,
 } from 'react-native';
 
+import { CardPopup } from '@/components/CardPopup';
 import { ROTATINGCARD_BORDER_INSET, RotatingcardBorder } from '@/components/RotatingcardBorder';
 import type { Size } from '@/components/skeleton';
 
 // One card in the carousel. `render` draws what goes inside the frame, at `size`: the space left
 // inside the line, the same for every card. A card can hold anything, including its own data
-// loading and buttons.
+// loading and buttons. With `popup`, tapping anywhere on the card opens a CardPopup that it draws
+// into, at the size inside the popup's line; a swipe doesn't.
 export type CarouselCard = {
   key: string;
   render: (size: Size) => ReactNode;
+  popup?: (size: Size) => ReactNode;
 };
 
 // A slide starts every CARD_INTERVAL and takes CARD_SLIDE_DURATION of it.
@@ -37,17 +41,22 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 // in from under the right of the border as the last leaves under the left. Only the shown card and
 // its neighbours are mounted; the cards keep moving rather than jumping back to the start, so a
 // card is never remounted while visible. A swipe pauses the timer, which starts again from the
-// card it lands on.
+// card it lands on. `openKey` is the card whose popup is open, if any; tapping a card or closing
+// its popup calls `onOpen`.
 export function CardCarousel({
   cards,
   size,
   inset,
   pitch,
+  openKey,
+  onOpen,
 }: {
   cards: CarouselCard[];
   size: Size;
   inset: number;
   pitch: number;
+  openKey: string | null;
+  onOpen: (key: string | null) => void;
 }) {
   // Cards moved past so far, negative after swiping back past the first; the shown card is
   // cards[position] wrapped round the list.
@@ -145,28 +154,41 @@ export function CardCarousel({
     height: Math.max(0, size.height - INSET.top - INSET.bottom),
   };
   const shown = count < 2 ? [position] : [position - 1, position, position + 1];
+  const popup = cards.find((card) => card.key === openKey)?.popup ?? null;
 
   return (
-    <View {...panResponder.panHandlers} style={{ height: size.height, width: pitch }}>
-      {shown.map((slot) => {
-        const card = cards[((slot % count) + count) % count];
-        return (
-          // Keyed by slot, so the shown card stays mounted when a neighbour becomes current. Each
-          // card is moved on its own, so it is always inside its own bounds and gets its touches.
-          <Animated.View
-            key={slot}
-            style={[
-              styles.card,
-              { left: inset, transform: [{ translateX: Animated.add(offset, slot * pitch) }] },
-            ]}>
-            <RotatingcardBorder height={size.height} width={size.width} />
-            <View style={[styles.content, { left: INSET.left, top: INSET.top, ...content }]}>
-              {card.render(content)}
-            </View>
-          </Animated.View>
-        );
-      })}
-    </View>
+    <>
+      <View {...panResponder.panHandlers} style={{ height: size.height, width: pitch }}>
+        {shown.map((slot) => {
+          const card = cards[((slot % count) + count) % count];
+          return (
+            // Keyed by slot, so the shown card stays mounted when a neighbour becomes current. Each
+            // card is moved on its own, so it is always inside its own bounds and gets its touches.
+            <Animated.View
+              key={slot}
+              style={[
+                styles.card,
+                {
+                  left: inset,
+                  transform: [{ translateX: Animated.add(offset, slot * pitch) }],
+                },
+              ]}>
+              <RotatingcardBorder height={size.height} width={size.width} />
+              <View style={[styles.content, { left: INSET.left, top: INSET.top, ...content }]}>
+                {card.render(content)}
+              </View>
+              {/* Over the whole card, so the tap lands anywhere inside the border. The carousel
+                  takes over a sideways drag, which cancels the press. */}
+              {card.popup && (
+                <Pressable onPress={() => onOpen(card.key)} style={StyleSheet.absoluteFill} />
+              )}
+            </Animated.View>
+          );
+        })}
+      </View>
+      {/* Outside the carousel's view, so its sideways drags don't claim touches in the popup. */}
+      <CardPopup onClose={() => onOpen(null)} render={popup} />
+    </>
   );
 }
 

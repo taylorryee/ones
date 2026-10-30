@@ -20,6 +20,8 @@ export type PlayerStats = {
 export type BadgeWallContent = {
   quote: Quote;
   stats: PlayerStats;
+  // Every verse in order, for the book the quote card opens.
+  verses: Quote[];
 };
 
 // Sends the local date so the quote changes at the player's midnight.

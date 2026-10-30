@@ -12,6 +12,8 @@ import { GlassesGleam } from '@/components/GlassesGleam';
 import { HoopPopup } from '@/components/HoopPopup';
 import { badgeWallCards } from '@/components/cards/badgeWallCards';
 import { MonthPager } from '@/components/MonthPager';
+import { OutlineNumber } from '@/components/OutlineNumber';
+import { fitOutlineNumber } from '@/components/outlineDigits';
 import { useContentInset, useContentSize } from '@/components/ScreenBorder';
 import { SeparatingLine } from '@/components/SeparatingLine';
 import { StickerArt } from '@/components/StickerArt';
@@ -20,87 +22,21 @@ import { FONT, INK, PAPER } from '@/constants/theme';
 import { dayKey, useDayFills } from '@/hooks/useDayFills';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
 import { getBadgeWallContent, type BadgeWallContent } from '@/services/cards';
-import { getPlayedTimes } from '@/services/matches';
+import { getActiveMatch, getPlayedTimes } from '@/services/matches';
 import { getStickerInventory, type OwnedSticker } from '@/services/stickers';
 
 // The scribble a day is filled with when the player says they hooped.
 const HOOP_FILL_COLOR = '#F97316';
-
-type RatioFit = { key: string; fontSize: number; baseline: number | null };
-
-// Keeps the size the layout gives the Elo, and only shrinks it, by the smallest amount that fits,
-// when the shown number is wider than the one the layout was sized for. The hidden copy in
-// RatioText is measured at the size actually shown, so the result is verified rather than assumed
-// to scale linearly; it re-measures until the width is within bounds. Also reports where the
-// baseline lands from the top of the text, which differs between iOS and Android.
-// Starts again from the layout's size whenever the text or the limits change.
-function useRatioFontSize(text: string, maxWidth: number, maxFontSize: number) {
-  const key = `${text}|${maxWidth}|${maxFontSize}`;
-  const [fit, setFit] = useState<RatioFit>({ key, fontSize: maxFontSize, baseline: null });
-
-  function handleMeasure(width: number, baseline: number) {
-    setFit((current) => {
-      const fontSize = current.key === key ? current.fontSize : maxFontSize;
-      if (width > maxWidth) {
-        const shrunk = Math.floor(fontSize * (maxWidth / width) * 0.995 * 10) / 10;
-        return { key, fontSize: shrunk, baseline: null };
-      }
-      if (current.key === key && current.baseline === baseline) {
-        return current;
-      }
-      return { key, fontSize, baseline };
-    });
-  }
-
-  const current = fit.key === key ? fit : { fontSize: maxFontSize, baseline: null };
-  return {
-    fontSize: current.fontSize,
-    baseline: current.baseline,
-    handleMeasure,
-  };
-}
-
-// Fitted to its box, so it ignores the system text size; the fit would undo it anyway.
-function RatioText({
-  children,
-  fontSize,
-  onMeasure,
-}: {
-  children: string;
-  fontSize: number;
-  onMeasure: (width: number, baseline: number) => void;
-}) {
-  return (
-    <>
-      {/* Hidden, very wide copy so the text is measured on one line at the shown size. */}
-      <Text
-        allowFontScaling={false}
-        onTextLayout={(e) => {
-          const line = e.nativeEvent.lines[0];
-          // `ascender` is the distance from the top of the line to its baseline on both platforms
-          // (iOS reports where the first glyph was actually placed), wherever each puts the line gap.
-          if (line) {
-            onMeasure(line.width, line.y + line.ascender);
-          }
-        }}
-        style={[styles.ratioText, styles.ratioMeasure, { fontSize }]}>
-        {children}
-      </Text>
-      <Text
-        allowFontScaling={false}
-        ellipsizeMode="clip"
-        numberOfLines={1}
-        style={[styles.ratioText, { fontSize }]}>
-        {children}
-      </Text>
-    </>
-  );
-}
+// The sticker each showcase slot shows, left to right, until players can choose: the owned one
+// when there is one, so it opens its popup, otherwise just its picture. Thinker is the glasses.
+const SHOWCASE_STICKERS = ['thinker', 'cone', 'goat'];
 
 export default function BadgeWallScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stickers, setStickers] = useState<OwnedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<OwnedSticker | null>(null);
+  // The rotating card whose popup is open.
+  const [openCard, setOpenCard] = useState<string | null>(null);
   const [cardContent, setCardContent] = useState<BadgeWallContent | null>(null);
   const [playedTimes, setPlayedTimes] = useState<Date[] | null>(null);
   // Colored-in calendar days: dayFills.fillDay(date, color) scribbles one in.
@@ -114,8 +50,10 @@ export default function BadgeWallScreen() {
     () => getWallLayout(contentSize, contentInset),
     [contentSize, contentInset]
   );
-  const ratioText = profile ? String(profile.rating) : '';
-  const ratio = useRatioFontSize(ratioText, layout.top.eloWidth, layout.top.eloFontSize);
+  // As large as the Elo's box allows, by its height or, for a long number, its width.
+  const eloHeight = profile
+    ? fitOutlineNumber(profile.rating, layout.top.eloBox.width, layout.top.eloBox.height)
+    : 0;
 
   useFocusEffect(
     useCallback(() => {
@@ -160,19 +98,21 @@ export default function BadgeWallScreen() {
     }, [])
   );
 
-  // Vertical only, so it leaves the calendar's and the cards' sideways swipes alone.
+  // Vertical only, so it leaves the calendar's and the cards' sideways swipes alone. Off while a
+  // card's popup is open: touches in a Modal still reach this screen's responders, so scrolling
+  // the popup would otherwise open the play screen.
   const swipeUpResponder = useMemo(
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dy) > Math.abs(gesture.dx) && gesture.dy < -10,
+          openCard === null && Math.abs(gesture.dy) > Math.abs(gesture.dx) && gesture.dy < -10,
         onPanResponderRelease: (_, gesture) => {
           if (gesture.dy < -60) {
             router.push('/play');
           }
         },
       }),
-    []
+    [openCard]
   );
 
   function handleStickerPress(sticker: OwnedSticker) {
@@ -186,15 +126,14 @@ export default function BadgeWallScreen() {
     }
   }
 
-  const { top, middle, bottom } = layout;
+  // Dev only: opens the match screen. Without a match in progress, it opens a preview of the
+  // Win/Loss picker instead.
+  async function openTestMatch() {
+    const match = await getActiveMatch().catch(() => null);
+    router.push({ pathname: '/match/[id]', params: { id: match ? String(match.id) : 'preview' } });
+  }
 
-  // Shows the first owned stickers until players can choose which ones go here, except the right
-  // slot, which always shows the goat: the owned one when there is one, so it opens its popup.
-  const goat = stickers.find((owned) => owned.sticker.slug === 'goat');
-  const showcase: (OwnedSticker | undefined)[] = stickers
-    .filter((owned) => owned !== goat)
-    .slice(0, SHOWCASE_SLOTS - 1);
-  showcase[SHOWCASE_SLOTS - 1] = goat;
+  const { top, middle, bottom } = layout;
 
   return (
     <View
@@ -205,25 +144,20 @@ export default function BadgeWallScreen() {
           height: top.height,
           paddingLeft: contentInset.left + SIDE_PADDING,
           paddingRight: contentInset.right + SIDE_PADDING,
-          paddingTop: top.stackPadding,
         }}>
-        {/* Only as tall as the Elo's baseline: the rest of its line hangs over the stickers. */}
-        <View style={{ height: top.eloHeight, width: top.eloWidth }}>
-          {/* Moves the measured baseline onto the bottom of the box, also when a wide number has
-              shrunk. Hidden until measured, so it never shows overlapping the stickers. Absolute,
-              so the box's height can't squeeze the text and clip the bottom of the digits. */}
-          <View
-            style={[
-              styles.ratioLine,
-              {
-                opacity: ratio.baseline === null ? 0 : 1,
-                top: ratio.baseline === null ? 0 : top.eloHeight - ratio.baseline,
-              },
-            ]}>
-            <RatioText fontSize={ratio.fontSize} onMeasure={ratio.handleMeasure}>
-              {ratioText}
-            </RatioText>
-          </View>
+        {/* Fills the space above the stickers, out of the side padding to the content edge. A
+            number that doesn't fill it sits at the bottom, so the gap to the stickers stays the
+            same. */}
+        <View
+          style={[
+            styles.elo,
+            {
+              height: top.eloBox.height,
+              marginHorizontal: -SIDE_PADDING,
+              width: top.eloBox.width,
+            },
+          ]}>
+          {profile && <OutlineNumber height={eloHeight} value={profile.rating} />}
         </View>
         <View
           style={[
@@ -233,12 +167,13 @@ export default function BadgeWallScreen() {
               height: top.showcaseHeight,
               // Out of the side padding, so the outer stickers reach the content edge.
               marginHorizontal: -SIDE_PADDING,
-              marginTop: top.showcaseGap,
+              marginTop: top.eloGap,
             },
           ]}>
           {Array.from({ length: SHOWCASE_SLOTS }, (_, index) => {
-            const sticker = showcase[index];
-            const isGoatSlot = index === SHOWCASE_SLOTS - 1;
+            const slug = SHOWCASE_STICKERS[index];
+            const sticker = stickers.find((owned) => owned.sticker.slug === slug);
+            const art = slug === 'thinker' ? <GlassesGleam /> : <StickerArt slug={slug} />;
             const isMiddle = index === Math.floor(SHOWCASE_SLOTS / 2);
             const size = {
               height: top.slot,
@@ -247,18 +182,12 @@ export default function BadgeWallScreen() {
             };
             return sticker ? (
               <Pressable key={index} onPress={() => handleStickerPress(sticker)} style={size}>
-                {sticker.sticker.slug === 'thinker' ? (
-                  <GlassesGleam />
-                ) : (
-                  <StickerArt slug={sticker.sticker.slug} />
-                )}
+                {art}
               </Pressable>
-            ) : isGoatSlot ? (
-              <View key={index} style={size}>
-                <StickerArt slug="goat" />
-              </View>
             ) : (
-              <View key={index} style={[styles.showcaseSlot, size]} />
+              <View key={index} style={size}>
+                {art}
+              </View>
             );
           })}
         </View>
@@ -283,6 +212,8 @@ export default function BadgeWallScreen() {
         <View style={{ marginTop: bottom.cardTop }}>
           <CardCarousel
             cards={badgeWallCards(cardContent, stickers)}
+            onOpen={setOpenCard}
+            openKey={openCard}
             inset={contentInset.left}
             pitch={layout.frameWidth}
             size={bottom.card}
@@ -290,6 +221,14 @@ export default function BadgeWallScreen() {
         </View>
         <Separator width={layout.frameWidth} />
       </View>
+      {__DEV__ && (
+        <Pressable
+          hitSlop={12}
+          onPress={openTestMatch}
+          style={[styles.testButton, { right: contentInset.right + SIDE_PADDING, top: contentInset.top }]}>
+          <Text style={styles.testButtonText}>Match (dev)</Text>
+        </Pressable>
+      )}
       <StickerPopup onClose={() => setSelectedSticker(null)} sticker={selectedSticker} />
       <HoopPopup
         date={askedDay}
@@ -314,36 +253,27 @@ const styles = StyleSheet.create({
     backgroundColor: PAPER,
     flex: 1,
   },
-  ratioLine: {
+  elo: {
     alignItems: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
+    justifyContent: 'flex-end',
   },
   showcaseRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  showcaseSlot: {
-    borderColor: '#9CA3AF',
-    borderRadius: 12,
-    borderStyle: 'dashed',
-    borderWidth: 2,
-  },
-  ratioText: {
-    color: INK,
-    fontFamily: FONT,
-    textAlign: 'center',
-  },
-  ratioMeasure: {
-    opacity: 0,
-    position: 'absolute',
-    width: 10000,
-  },
   separator: {
     left: 0,
     position: 'absolute',
     top: 0,
+  },
+  testButton: {
+    position: 'absolute',
+  },
+  testButtonText: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 18,
+    textDecorationLine: 'underline',
   },
 });

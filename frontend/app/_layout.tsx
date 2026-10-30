@@ -59,6 +59,13 @@ function AppStack() {
           gestureEnabled: false,
         }}
       />
+      {/* The Win/Loss halves fill up to the line, so the screen applies the inset itself. */}
+      <Stack.Screen
+        name="match/[id]"
+        options={{
+          contentStyle: { backgroundColor: PAPER },
+        }}
+      />
       <Stack.Screen name="test-challenge" />
       <Stack.Screen name="art-gallery" />
     </Stack>

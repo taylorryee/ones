@@ -9,11 +9,18 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
 } from 'react-native';
 
 import { api } from '@/api';
+import { useContentInset, useContentSize } from '@/components/ScreenBorder';
+import { SEPARATOR_HEIGHT, SeparatingLine } from '@/components/SeparatingLine';
+import { FONT, INK } from '@/constants/theme';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
+
+// The two halves of the result picker. Soft enough that the ink line and lettering stay the
+// strongest marks on the screen.
+const WIN_COLOR = '#9BD8A0';
+const LOSS_COLOR = '#F2A1A1';
 
 type Match = {
   id: number;
@@ -33,16 +40,20 @@ type Match = {
 
 export default function MatchScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Dev only: /match/preview shows the Win/Loss picker without a match, for the badge wall's
+  // test button. Taps there send nothing.
+  const isPreview = __DEV__ && id === 'preview';
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [match, setMatch] = useState<Match | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [score,setScore] = useState('');
-  const [oppScore,setOppScore] = useState('');
-  const [scoreError,setScoreError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const content = useContentSize();
+  const inset = useContentInset();
 
 /////////////////////////////////////////INTIAL MATCH SETUP//////////////////////////////////////////
   const loadMatch = useCallback(async () => { //intial loading of match
+    if (isPreview) return;
     try {
       setIsLoading(true);
 
@@ -59,18 +70,19 @@ export default function MatchScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, isPreview]);
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   /////////////////////////////////MATCH POLLING///////////////////////////////////////////
   const refreshMatch = useCallback(async () => { 
+    if (isPreview) return;
     try {
       const response = await api.get<Match>(`/matches/${id}`);
       setMatch(response.data);
     } catch {
 
     }
-  }, [id]);
+  }, [id, isPreview]);
 
   useEffect(() => {
     loadMatch();
@@ -113,28 +125,18 @@ export default function MatchScreen() {
     const opponentId =
       match.playerOne_id === profile.id ? match.playerTwo_id : match.playerOne_id;
     const winnerId = didWin ? profile.id : opponentId;
-    const yourScore = Number(score);
-    const opponentScore = Number(oppScore);
-
-    if (score === '' || oppScore === '') {
-      setScoreError('Enter both scores before submitting.');
-      return;
-    }
-
-    const playerOneScore = match.playerOne_id === profile.id ? yourScore : opponentScore;
-    const playerTwoScore = match.playerTwo_id === profile.id ? yourScore : opponentScore;
 
     try {
       setIsSubmitting(true);
-      setScoreError('');
+      setSubmitError('');
 
-
+      // Only the winner is reported; scores stay empty.
       const response = await api.post<Match>(
         `/matches/${match.id}/submit`,
         {
           winner_id: winnerId,
-          playerOne_score: playerOneScore,
-          playerTwo_score: playerTwoScore,
+          playerOne_score: null,
+          playerTwo_score: null,
         },
         {
           params: {
@@ -145,7 +147,7 @@ export default function MatchScreen() {
 
       setMatch(response.data);
     } catch {
-
+      setSubmitError("Couldn't send it. Tap again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -179,7 +181,6 @@ export default function MatchScreen() {
     profile != null &&
     match != null &&
     (match.playerOne_id === profile.id || match.playerTwo_id === profile.id);
-  const canSubmit = isParticipant && match?.status === 'pending';
   const isPlayerOne = match?.playerOne_id === profile?.id;
   const yourWinRatingChange = (isPlayerOne
     ? match?.playerOne_win_rating_change
@@ -189,6 +190,46 @@ export default function MatchScreen() {
     : match?.playerOne_win_rating_change) ?? 0;
   const confirmedRatingChange =
     match?.winner_id === profile?.id ? yourWinRatingChange : -yourLossRatingChange;
+
+  // While the game is on, the whole frame is the result picker: tap the half that happened.
+  // The halves fill edge to edge and the screen border masks them to its line.
+  function renderPicker(onResult: (didWin: boolean) => void) {
+    // Exactly half the frame each, whatever the top and bottom insets, so the color boundary
+    // sits under the line. Their outer edges run under the border, which masks them to its line.
+    const half = (content.height + inset.top + inset.bottom) / 2;
+    return (
+      <View style={styles.picker}>
+        <ResultHalf
+          color={WIN_COLOR}
+          disabled={isSubmitting}
+          label="Win"
+          onPress={() => onResult(true)}
+          style={{ height: half, paddingTop: inset.top }}
+        />
+        <ResultHalf
+          color={LOSS_COLOR}
+          disabled={isSubmitting}
+          label="Loss"
+          onPress={() => onResult(false)}
+          style={{ height: half, paddingBottom: inset.bottom }}
+        />
+        {/* Centred on the boundary: the line's wobble stays inside its stroke, so neither color
+            shows past it. */}
+        <View pointerEvents="none" style={[styles.seam, { top: half - SEPARATOR_HEIGHT / 2 }]}>
+          <SeparatingLine width={content.width + inset.left + inset.right} />
+        </View>
+        {submitError !== '' && (
+          <Text pointerEvents="none" style={[styles.pickerError, { bottom: inset.bottom }]}>
+            {submitError}
+          </Text>
+        )}
+      </View>
+    );
+  }
+
+  if (isPreview) {
+    return renderPicker((didWin) => setSubmitError(`Preview: ${didWin ? 'Win' : 'Loss'} tapped`));
+  }
 
   if (isLoading) {
     return (
@@ -206,8 +247,22 @@ export default function MatchScreen() {
     );
   }
 //////////////////////////////////////////////////////////////////////////////
+
+  if (match.status === 'pending' && isParticipant) {
+    return renderPicker(declareResult);
+  }
+
   return (
-    <View style={styles.safeArea}>
+    <View
+      style={[
+        styles.safeArea,
+        {
+          paddingTop: inset.top,
+          paddingRight: inset.right,
+          paddingBottom: inset.bottom,
+          paddingLeft: inset.left,
+        },
+      ]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardAvoidingView}>
@@ -242,61 +297,6 @@ export default function MatchScreen() {
             </View>
           )}
         </View>
-
-        {/* match not submitted */}
-        {match.status === 'pending' && (
-          <View style={styles.actions}>
-            <View style={styles.scoreCard}>
-              <Text style={styles.scoreTitle}>Report score</Text>
-
-              <View style={styles.scoreRow}>
-                <View style={styles.scoreInputGroup}>
-                  <Text style={styles.label}>Your score</Text>
-                  <TextInput 
-                    value={score}
-                    onChangeText={(value) => {
-                      setScore(value.replace(/\D/g, ''));
-                      setScoreError('');
-                    }}
-                    keyboardType="number-pad"
-                    placeholder="0"
-                    style={styles.scoreInput}
-                  />
-                </View>
-
-                <View style={styles.scoreInputGroup}>
-                  <Text style={styles.label}>Opp score</Text>
-                  <TextInput 
-                    value={oppScore}
-                    onChangeText={(value) => {
-                      setOppScore(value.replace(/\D/g, ''));
-                      setScoreError('');
-                    }}
-                    keyboardType="number-pad"
-                    placeholder="0"
-                    style={styles.scoreInput}
-                  />
-                </View>
-              </View>
-
-              {scoreError !== '' && <Text style={styles.errorText}>{scoreError}</Text>}
-            </View>
-
-            <Pressable
-              disabled={!canSubmit || isSubmitting}
-              onPress={() => declareResult(true)}
-              style={[styles.winButton, (!canSubmit || isSubmitting) && styles.disabledButton]}>
-              <Text style={styles.winButtonText}>{isSubmitting ? 'Submitting...' : 'I Won'}</Text>
-            </Pressable>
-
-            <Pressable 
-              disabled={!canSubmit || isSubmitting}
-              onPress={() => declareResult(false)}
-              style={[styles.lossButton, (!canSubmit || isSubmitting) && styles.disabledButton]}>
-              <Text style={styles.lossButtonText}>I Lost</Text>
-            </Pressable>
-          </View>
-        )}
 
         {/* waiting for confirmation */}
         {match.status === 'submitted' && match.submitted_by_id === profile.id && (
@@ -348,7 +348,63 @@ export default function MatchScreen() {
   );
 }
 
+function ResultHalf({
+  color,
+  disabled,
+  label,
+  onPress,
+  style,
+}: {
+  color: string;
+  disabled: boolean;
+  label: string;
+  onPress: () => void;
+  style: { height: number; paddingTop?: number; paddingBottom?: number };
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={`I ${label === 'Win' ? 'won' : 'lost'}`}
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.half,
+        { backgroundColor: color },
+        style,
+        (pressed || disabled) && styles.halfPressed,
+      ]}>
+      <Text style={styles.halfLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  picker: {
+    flex: 1,
+  },
+  half: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  halfPressed: {
+    opacity: 0.7,
+  },
+  halfLabel: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 96,
+  },
+  seam: {
+    left: 0,
+    position: 'absolute',
+  },
+  pickerError: {
+    alignSelf: 'center',
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 22,
+    position: 'absolute',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#F8FAFC',
@@ -422,44 +478,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  scoreCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 12,
-    padding: 18,
-  },
-  scoreTitle: {
-    color: '#111827',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  scoreInputGroup: {
-    flex: 1,
-    gap: 8,
-  },
-  scoreInput: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    borderWidth: 1,
-    color: '#111827',
-    fontSize: 22,
-    fontWeight: '800',
-    minHeight: 56,
-    paddingHorizontal: 12,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: '#B91C1C',
-    fontSize: 14,
-    fontWeight: '700',
   },
   actions: {
     gap: 12,

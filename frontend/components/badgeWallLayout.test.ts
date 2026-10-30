@@ -54,7 +54,7 @@ for (const [name, width, height, safeTop, safeBottom] of PHONES) {
     assert.ok(Math.abs(layout.frameWidth - frame.width) < 1e-6, 'separators span the frame');
 
     const { top } = layout;
-    assert.ok(top.eloFontSize > 0 && top.slot > 0);
+    assert.ok(top.eloHeight > 0 && top.slot > 0);
     assert.ok(top.stackPadding >= -1e-6, 'Elo and stickers fit the section');
     assert.ok(
       Math.abs(
@@ -64,6 +64,13 @@ for (const [name, width, height, safeTop, safeBottom] of PHONES) {
       'top section adds up'
     );
     assert.ok(top.slot + top.slotDip <= top.showcaseHeight + 1e-6, 'dipped sticker stays in its row');
+    assert.ok(
+      Math.abs(
+        top.eloBox.height + top.eloGap - (top.stackPadding + top.eloHeight + top.showcaseGap)
+      ) < 1e-6,
+      'the Elo box ends where the stickers already start, less its gap'
+    );
+    assert.ok(top.eloGap > 0 && top.eloBox.width <= content.width + 1e-6, 'Elo stays inside');
     const rowWidth = top.slot * SHOWCASE_SLOTS + top.showcaseGap * (SHOWCASE_SLOTS - 1);
     assert.ok(rowWidth <= content.width + 1e-6, 'stickers fit the width');
     assert.ok(rowWidth >= content.width - SIDE_PADDING * 2, 'stickers reach past the Elo padding');

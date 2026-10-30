@@ -23,3 +23,5 @@ class PlayerStats(BaseModel):
 class BadgeWallContent(BaseModel):
     quote: Quote
     stats: PlayerStats
+    # Every verse in order, for the book the quote card opens.
+    verses: list[Quote]

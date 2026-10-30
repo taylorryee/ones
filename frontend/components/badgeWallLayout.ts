@@ -3,6 +3,7 @@
 // never to the screen. No React Native imports, so Node can run the tests.
 
 import { SKELETONS } from './art.generated.ts';
+import { outlineNumberWidth } from './outlineDigits.ts';
 import type { Insets, Size } from './skeleton.ts';
 
 // Shares of the content height: Elo and stickers, the calendar, and a section still to come.
@@ -14,18 +15,13 @@ export const SIDE_PADDING = 20;
 
 const SEPARATOR_HEIGHT = SKELETONS.separator.height;
 
-// From assets/oneSanFUv2.ttf, as shares of the font size: the height of the digits, the furthest
-// the baseline the digits sit on can be from the top of their line (a line is 1.117 tall with
-// 0.213 under the baseline; iOS can put the line gap above the text), and the width of "2000",
-// the widest Elo a player normally reaches. Re-measure if the font changes. The screen measures
-// where the baseline really is and lines it up with the bottom of the Elo's box.
-const DIGIT_HEIGHT = 0.8;
-const ELO_BASELINE = 0.904;
-const ELO_REFERENCE_WIDTH = 2.28;
+// The Elo is sized for this number, about the widest a player normally reaches, rather than the
+// shown one, so nothing moves when the number changes.
+const ELO_REFERENCE = 2000;
 
-// Row of sticker slots under the Elo number. A sticker is at most as tall as the digits, so the
-// two stay in proportion; on most phones the width is what stops the stickers first, so they span
-// the row.
+// Row of sticker slots under the Elo number. A sticker is at most as tall as the digits' artboards,
+// so the two stay in proportion; on most phones the width is what stops the stickers first, so
+// they span the row.
 export const SHOWCASE_SLOTS = 3;
 const SHOWCASE_ELO_RATIO = 1;
 // Space between stickers, and between the digits and the stickers, as a share of the sticker size.
@@ -83,31 +79,39 @@ export function getWallLayout(content: Size, inset: Insets) {
   const middleHeight = content.height * SECTIONS.middle;
   const innerWidth = content.width - SIDE_PADDING * 2;
 
-  // Top section, from the top: the Elo from the top of its line down to the digits' baseline, a
-  // gap, then the stickers with the middle one dipped. The space under the baseline is left out,
-  // so the stickers tuck up under the digits. SPACE is kept clear above the separator.
+  // Top section, from the top: the Elo's hollow digits, a gap, then the stickers with the middle
+  // one dipped. SPACE is kept clear above the separator.
   const stackRoom = topHeight - SPACE;
   // Each sticker with its gap; the Elo and the stickers are solved for together from the ratio.
   const slotUnit = 1 + SHOWCASE_GAP_SCALE + SHOWCASE_SMILE_DIP;
-  // Sized for a reference Elo rather than the shown one, so nothing moves when the number changes.
-  const eloFontSize = Math.max(
+  const eloHeight = Math.max(
     0,
     Math.min(
-      innerWidth / ELO_REFERENCE_WIDTH,
-      stackRoom / (ELO_BASELINE + SHOWCASE_ELO_RATIO * DIGIT_HEIGHT * slotUnit)
+      innerWidth / outlineNumberWidth(ELO_REFERENCE, 1),
+      stackRoom / (1 + SHOWCASE_ELO_RATIO * slotUnit)
     )
   );
-  const eloHeight = eloFontSize * ELO_BASELINE;
   const slot = Math.max(
     0,
     Math.min(
-      SHOWCASE_ELO_RATIO * DIGIT_HEIGHT * eloFontSize,
+      SHOWCASE_ELO_RATIO * eloHeight,
       // Unlike the Elo, the stickers skip SIDE_PADDING and span the whole content width.
       content.width / (SHOWCASE_SLOTS + SHOWCASE_GAP_SCALE * (SHOWCASE_SLOTS - 1)),
       (stackRoom - eloHeight) / slotUnit
     )
   );
   const showcaseGap = slot * SHOWCASE_GAP_SCALE;
+  // Whatever the stack doesn't use is split above and below it.
+  const stackPadding = (stackRoom - eloHeight - slot * slotUnit) / 2;
+
+  // The stickers are placed from `eloHeight` above; the Elo itself is then drawn as large as the
+  // space above them allows: from the top of the content, across its whole width, down to SPACE
+  // above the stickers (less if their own gap is smaller).
+  const eloGap = Math.min(SPACE, showcaseGap);
+  const eloBox = {
+    width: content.width,
+    height: stackPadding + eloHeight + showcaseGap - eloGap,
+  };
 
   const calendarTop = SEPARATOR_HEIGHT + SPACE;
   // The same space is kept above the next section's separator.
@@ -122,11 +126,10 @@ export function getWallLayout(content: Size, inset: Insets) {
     frameWidth: content.width + inset.left + inset.right,
     top: {
       height: topHeight,
-      // Whatever the stack doesn't use is split above and below it.
-      stackPadding: (stackRoom - eloHeight - slot * slotUnit) / 2,
-      eloFontSize,
-      eloWidth: innerWidth,
+      stackPadding,
       eloHeight,
+      eloBox,
+      eloGap,
       showcaseGap,
       showcaseHeight: slot * (1 + SHOWCASE_SMILE_DIP),
       slot,

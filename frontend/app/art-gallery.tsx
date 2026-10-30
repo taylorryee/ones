@@ -7,6 +7,8 @@ import { BOX_RATIO, buildBoxPaths, DayBox } from '@/components/DayBox';
 import { GALLERY } from '@/components/gallery.generated';
 import { InkPath } from '@/components/InkPath';
 import { buildPath, fitCorners } from '@/components/skeleton';
+import { OutlineNumber } from '@/components/OutlineNumber';
+import { ScrapNumber } from '@/components/ScrapNumber';
 import { SEPARATOR_HEIGHT, SeparatingLine } from '@/components/SeparatingLine';
 import { StickerArt } from '@/components/StickerArt';
 import { ARCHETYPES } from '@/constants/archetypes';
@@ -22,6 +24,9 @@ const SEPARATOR_WIDTHS = [160, 240, 320];
 // Smallest box on a 360dp Android, on the reference phone, and on a Pro Max.
 const BOX_SIZES = [34, 40, 46];
 const STICKER_SIZE = 64;
+// Elo digits: every digit once, then numbers a player might have, at small and large heights.
+const SCRAP_NUMBERS = [1234, 56789, 1500, 2000];
+const SCRAP_HEIGHTS = [48, 72];
 // Components created by `npm run art` are drawn at these shares of their Figma size.
 const GALLERY_SCALES = [0.75, 1, 1.25];
 // 264 is the popup's width on the smallest phones; 140 shows the corners left at full size while
@@ -129,6 +134,30 @@ export default function ArtGalleryScreen() {
           </View>
         );
       })}
+
+      <Text style={styles.heading}>Scrap numbers</Text>
+      {SCRAP_HEIGHTS.map((height) =>
+        SCRAP_NUMBERS.map((value) => (
+          <View key={`${height}-${value}`} style={styles.row}>
+            <Text style={styles.label}>{height}</Text>
+            <Outlined>
+              <ScrapNumber height={height} value={value} />
+            </Outlined>
+          </View>
+        ))
+      )}
+
+      <Text style={styles.heading}>Outline numbers</Text>
+      {SCRAP_HEIGHTS.map((height) =>
+        SCRAP_NUMBERS.map((value) => (
+          <View key={`${height}-${value}`} style={styles.row}>
+            <Text style={styles.label}>{height}</Text>
+            <Outlined>
+              <OutlineNumber height={height} value={value} />
+            </Outlined>
+          </View>
+        ))
+      )}
 
       <Text style={styles.heading}>Stickers at {STICKER_SIZE}</Text>
       <View style={styles.wrap}>

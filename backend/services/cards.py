@@ -87,4 +87,5 @@ def get_badge_wall_content(db: Session, player: Player, day: date):
     return BadgeWallContent(
         quote=quote_of_the_day(day),
         stats=player_stats(db, player),
+        verses=VERSES,
     )
