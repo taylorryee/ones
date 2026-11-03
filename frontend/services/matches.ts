@@ -17,3 +17,45 @@ export async function getActiveMatch() {
   const response = await api.get<{ id: number } | null>('/matches/me/active');
   return response.data;
 }
+
+// A new match against the same opponent once a match is confirmed. If the opponent already
+// tapped Rematch, this returns that match. Returns the match's id.
+export async function startRematch(matchId: number) {
+  const response = await api.post<{ id: number }>(`/matches/${matchId}/rematch`);
+  return response.data.id;
+}
+
+// The points, after the result is confirmed. The winner needs the higher score.
+export async function recordScore(matchId: number, playerOneScore: number, playerTwoScore: number) {
+  await api.post(`/matches/${matchId}/score`, {
+    playerOne_score: playerOneScore,
+    playerTwo_score: playerTwoScore,
+  });
+}
+
+// A result the opponent reported that you haven't answered, while it can still be disputed.
+export type ResultToAnswer = {
+  id: number;
+  opponent_name: string;
+  you_won: boolean;
+  dispute_deadline: string;
+};
+
+export async function getResultsToAnswer() {
+  const response = await api.get<ResultToAnswer[]>('/matches/me/to-answer');
+  return response.data;
+}
+
+// Agrees with a result the opponent reported. Returns the match, so a win's sticker can be shown.
+export async function agreeWithResult(matchId: number) {
+  const response = await api.post<{
+    awarded_player_sticker_id: number | null;
+    sticker_outcome: 'unlocked' | 'leveled_up' | null;
+  }>(`/matches/${matchId}/confirm`);
+  return response.data;
+}
+
+// Throws out a result the opponent reported: Elo, the win and any sticker are taken back.
+export async function disputeResult(matchId: number) {
+  await api.post(`/matches/${matchId}/dispute`);
+}

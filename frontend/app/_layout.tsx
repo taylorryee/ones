@@ -66,7 +66,6 @@ function AppStack() {
           contentStyle: { backgroundColor: PAPER },
         }}
       />
-      <Stack.Screen name="test-challenge" />
       <Stack.Screen name="art-gallery" />
     </Stack>
   );

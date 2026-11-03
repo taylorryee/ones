@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
 
 import {
   getWallLayout,
@@ -12,20 +12,28 @@ import { GlassesGleam } from '@/components/GlassesGleam';
 import { HoopPopup } from '@/components/HoopPopup';
 import { badgeWallCards } from '@/components/cards/badgeWallCards';
 import { MonthPager } from '@/components/MonthPager';
+import { QuestionPopup } from '@/components/QuestionPopup';
 import { OutlineNumber } from '@/components/OutlineNumber';
 import { fitOutlineNumber } from '@/components/outlineDigits';
 import { useContentInset, useContentSize } from '@/components/ScreenBorder';
 import { SeparatingLine } from '@/components/SeparatingLine';
 import { StickerArt } from '@/components/StickerArt';
 import { StickerPopup } from '@/components/StickerPopup';
-import { FONT, INK, PAPER } from '@/constants/theme';
+import { PAPER } from '@/constants/theme';
 import { dayKey, useDayFills } from '@/hooks/useDayFills';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
 import { getBadgeWallContent, type BadgeWallContent } from '@/services/cards';
-import { getActiveMatch, getPlayedTimes } from '@/services/matches';
+import { consumeMatchPlayed, HOME } from '@/services/matchFlow';
+import {
+  agreeWithResult,
+  disputeResult,
+  getPlayedTimes,
+  getResultsToAnswer,
+  type ResultToAnswer,
+} from '@/services/matches';
 import { getStickerInventory, type OwnedSticker } from '@/services/stickers';
 
-// The scribble a day is filled with when the player says they hooped.
+// The scribble a day is filled with when the player hooped: said so, or played a match.
 const HOOP_FILL_COLOR = '#F97316';
 // The sticker each showcase slot shows, left to right, until players can choose: the owned one
 // when there is one, so it opens its popup, otherwise just its picture. Thinker is the glasses.
@@ -41,8 +49,12 @@ export default function BadgeWallScreen() {
   const [playedTimes, setPlayedTimes] = useState<Date[] | null>(null);
   // Colored-in calendar days: dayFills.fillDay(date, color) scribbles one in.
   const dayFills = useDayFills();
+  const { fillDay, fillDaysIfEmpty } = dayFills;
   // The day whose "U hoop today?" popup is open.
   const [askedDay, setAskedDay] = useState<Date | null>(null);
+  // Results opponents reported that this player hasn't answered, asked about one at a time.
+  const [resultsToAnswer, setResultsToAnswer] = useState<ResultToAnswer[]>([]);
+  const resultToAnswer = resultsToAnswer[0] ?? null;
   const today = new Date();
   const contentSize = useContentSize();
   const contentInset = useContentInset();
@@ -83,19 +95,38 @@ export default function BadgeWallScreen() {
         })
         .catch(() => {});
 
-      // Also on its own; if it fails, the calendar shows month names without a count.
-      getPlayedTimes()
-        .then((times) => {
+      // Asked about each time the screen is shown, until answered or the day ends.
+      getResultsToAnswer()
+        .then((results) => {
           if (isActive) {
-            setPlayedTimes(times);
+            setResultsToAnswer(results);
           }
         })
         .catch(() => {});
 
+      // Read now, before anything async, so it's used by this visit only.
+      const matchJustPlayed = consumeMatchPlayed();
+
+      // Also on its own; if it fails, the calendar shows month names without a count. Days with
+      // a match are shown filled in; right after a match, today scribbles itself in on top.
+      getPlayedTimes()
+        .then((times) => {
+          if (isActive) {
+            setPlayedTimes(times);
+            fillDaysIfEmpty(times, HOOP_FILL_COLOR);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (isActive && matchJustPlayed) {
+            fillDay(new Date(), HOOP_FILL_COLOR);
+          }
+        });
+
       return () => {
         isActive = false;
       };
-    }, [])
+    }, [fillDay, fillDaysIfEmpty])
   );
 
   // Vertical only, so it leaves the calendar's and the cards' sideways swipes alone. Off while a
@@ -115,6 +146,35 @@ export default function BadgeWallScreen() {
     [openCard]
   );
 
+  // "That's right" leaves the result as it is; a win that earned a sticker shows it. Dispute
+  // takes the result back, so the Elo shown here is reloaded.
+  async function answerResult(result: ResultToAnswer, agrees: boolean) {
+    try {
+      if (agrees) {
+        const match = await agreeWithResult(result.id);
+        if (
+          result.you_won &&
+          match.sticker_outcome != null &&
+          match.awarded_player_sticker_id != null
+        ) {
+          router.push({
+            pathname: '/sticker-reward',
+            params: {
+              next: HOME,
+              outcome: match.sticker_outcome,
+              playerStickerId: String(match.awarded_player_sticker_id),
+            },
+          });
+        }
+      } else {
+        await disputeResult(result.id);
+        setProfile(await getCurrentUser());
+      }
+    } catch {
+      // Most likely the day ended first, so the result already stands.
+    }
+  }
+
   function handleStickerPress(sticker: OwnedSticker) {
     setSelectedSticker(sticker);
   }
@@ -124,13 +184,6 @@ export default function BadgeWallScreen() {
     if (!dayFills.fills[dayKey(date)]) {
       setAskedDay(date);
     }
-  }
-
-  // Dev only: opens the match screen. Without a match in progress, it opens a preview of the
-  // Win/Loss picker instead.
-  async function openTestMatch() {
-    const match = await getActiveMatch().catch(() => null);
-    router.push({ pathname: '/match/[id]', params: { id: match ? String(match.id) : 'preview' } });
   }
 
   const { top, middle, bottom } = layout;
@@ -221,15 +274,26 @@ export default function BadgeWallScreen() {
         </View>
         <Separator width={layout.frameWidth} />
       </View>
-      {__DEV__ && (
-        <Pressable
-          hitSlop={12}
-          onPress={openTestMatch}
-          style={[styles.testButton, { right: contentInset.right + SIDE_PADDING, top: contentInset.top }]}>
-          <Text style={styles.testButtonText}>Match (dev)</Text>
-        </Pressable>
-      )}
       <StickerPopup onClose={() => setSelectedSticker(null)} sticker={selectedSticker} />
+      <QuestionPopup
+        onClose={() => setResultsToAnswer((results) => results.slice(1))}
+        options={
+          resultToAnswer
+            ? [
+                { label: "That's right", onPress: () => answerResult(resultToAnswer, true) },
+                { label: 'Dispute', onPress: () => answerResult(resultToAnswer, false) },
+              ]
+            : []
+        }
+        question={
+          resultToAnswer
+            ? resultToAnswer.you_won
+              ? `${resultToAnswer.opponent_name} says you beat them`
+              : `${resultToAnswer.opponent_name} says they beat you`
+            : ''
+        }
+        visible={resultToAnswer !== null && askedDay === null && selectedSticker === null}
+      />
       <HoopPopup
         date={askedDay}
         onClose={() => setAskedDay(null)}
@@ -266,14 +330,5 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     top: 0,
-  },
-  testButton: {
-    position: 'absolute',
-  },
-  testButtonText: {
-    color: INK,
-    fontFamily: FONT,
-    fontSize: 18,
-    textDecorationLine: 'underline',
   },
 });

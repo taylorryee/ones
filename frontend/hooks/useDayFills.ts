@@ -26,6 +26,22 @@ export function useDayFills() {
     setFills((current) => ({ ...current, [dayKey(date)]: { color, animate, kind } }));
   }, []);
 
+  // Shows each date already filled, leaving days that are filled alone so their scribble keeps
+  // its look when this runs again (e.g. each time the screen is shown).
+  const fillDaysIfEmpty = useCallback((dates: Date[], color: string) => {
+    setFills((current) => {
+      const next = { ...current };
+      for (const date of dates) {
+        const key = dayKey(date);
+        if (!next[key]) {
+          const kind = SCRIBBLE_KINDS[Math.floor(Math.random() * SCRIBBLE_KINDS.length)];
+          next[key] = { color, animate: false, kind };
+        }
+      }
+      return next;
+    });
+  }, []);
+
   const finishFill = useCallback((date: Date) => {
     setFills((current) => {
       const key = dayKey(date);
@@ -34,5 +50,5 @@ export function useDayFills() {
     });
   }, []);
 
-  return { fills, fillDay, finishFill };
+  return { fills, fillDay, fillDaysIfEmpty, finishFill };
 }

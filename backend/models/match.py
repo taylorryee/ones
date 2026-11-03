@@ -21,8 +21,10 @@ class Match(Base):
 
     playerOne_win_rating_change = Column(Integer, nullable=False, default=0)
     playerTwo_win_rating_change = Column(Integer, nullable=False, default=0)
+    # Share of the normal Elo stakes this match is worth (lower for repeat opponents).
+    rating_percent = Column(Integer, nullable=False, default=100, server_default="100")
 
-    status = Column(String, nullable=False, default="pending") #pending,awaiting,confirmed
+    status = Column(String, nullable=False, default="pending")  # see services/match.py
 
     submitted_by_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     confirmed_by_id = Column(Integer, ForeignKey("players.id"), nullable=True)
@@ -35,3 +37,5 @@ class Match(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     submitted_at = Column(DateTime(timezone=True), nullable=True)
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    # The end of the reporter's day: until then the other player can dispute the result.
+    dispute_deadline = Column(DateTime(timezone=True), nullable=True)

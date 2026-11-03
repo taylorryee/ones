@@ -74,8 +74,8 @@ export const SKELETONS = {
 // viewBox size of every illustration and sticker, for aspect ratios in layout code.
 export const ART = {
   basketball: { width: 330, height: 271 },
-  bully: { width: 88, height: 101 },
-  cone: { width: 102, height: 93 },
+  bully: { width: 512, height: 512 },
+  cone: { width: 512, height: 512 },
   digit0: { width: 79, height: 128 },
   digit1: { width: 63, height: 128 },
   digit2: { width: 79, height: 128 },
@@ -87,8 +87,8 @@ export const ART = {
   digit8: { width: 79, height: 128 },
   digit9: { width: 72, height: 128 },
   flame: { width: 51, height: 57 },
-  goat: { width: 136, height: 136 },
-  lockdown: { width: 98, height: 141 },
+  goat: { width: 512, height: 512 },
+  lockdown: { width: 512, height: 512 },
   ogSticker: { width: 144, height: 146 },
   outlineDigit0: { width: 70, height: 126 },
   outlineDigit1: { width: 43, height: 126 },
@@ -100,8 +100,8 @@ export const ART = {
   outlineDigit7: { width: 65, height: 126 },
   outlineDigit8: { width: 75, height: 126 },
   outlineDigit9: { width: 59, height: 126 },
-  slasher: { width: 100, height: 102 },
-  sniper: { width: 160, height: 153 },
+  slasher: { width: 512, height: 512 },
+  sniper: { width: 512, height: 512 },
   thinker: { width: 115, height: 71 },
-  trash: { width: 105, height: 143 },
+  trash: { width: 512, height: 512 },
 };

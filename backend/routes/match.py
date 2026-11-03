@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from database import get_db
 from models.player import Player
-from schemas.match import MatchCreate, MatchRead, MatchSubmit
+from schemas.match import MatchCreate, MatchRead, MatchScore, MatchSubmit, ResultToAnswer
 from services import match as service
 
 
@@ -42,6 +42,15 @@ def get_active_match(
     return service.get_active_match(db, current_user.id)
 
 
+# Results the opponent reported that you haven't answered yet; the badge wall asks about them.
+@router.get("/me/to-answer", response_model=list[ResultToAnswer])
+def get_results_to_answer(
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.get_results_to_answer(db, current_user)
+
+
 @router.get("/player/{player_id}", response_model=list[MatchRead])
 def get_player_matches(player_id: int, db: Session = Depends(get_db)):
     matches = service.get_player_matches(db, player_id)
@@ -60,11 +69,10 @@ def get_match(match_id: int, db: Session = Depends(get_db)):
 def submit_match_result(
     match_id: int,
     result: MatchSubmit,
-    id:int,
     db: Session = Depends(get_db),
-    #current_user: Player = Depends(get_current_user),
+    current_user: Player = Depends(get_current_user),
 ):
-    submitted = service.submit_match_result(db, match_id, result, id)#current_user)
+    submitted = service.submit_match_result(db, match_id, result, current_user.id)
 
     return submitted
 
@@ -72,10 +80,38 @@ def submit_match_result(
 @router.post("/{match_id}/confirm", response_model=MatchRead)
 def confirm_match(
     match_id: int,
-    id:int,
-    db: Session = Depends(get_db)):
-    #current_user: Player = Depends(get_current_user),
-
-    confirmed = service.confirm_match(db, match_id,id)# current_user)
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    confirmed = service.confirm_match(db, match_id, current_user.id)
 
     return confirmed
+
+
+@router.post("/{match_id}/rematch", response_model=MatchRead)
+def rematch(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.rematch(db, match_id, current_user)
+
+
+@router.post("/{match_id}/score", response_model=MatchRead)
+def record_score(
+    match_id: int,
+    score: MatchScore,
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.record_score(db, match_id, score, current_user.id)
+
+
+# The other player throws out a result they didn't report, before the end of that day.
+@router.post("/{match_id}/dispute", response_model=MatchRead)
+def dispute_match(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.dispute_match(db, match_id, current_user.id)

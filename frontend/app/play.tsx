@@ -25,6 +25,7 @@ import { SEPARATOR_HEIGHT, SeparatingLine } from '@/components/SeparatingLine';
 import { buildPath, fitCorners, insetsOf } from '@/components/skeleton';
 import { FONT, INK, PAPER, STROKE } from '@/constants/theme';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
+import { botScansMe, resetTestBot } from '@/services/dev';
 import { createChallenge, getActiveMatch } from '@/services/matches';
 
 const SIDE_PADDING = 24;
@@ -112,7 +113,12 @@ export default function PlayScreen() {
     router.replace({ pathname: '/match/[id]', params: { id: String(matchId) } });
   }
 
-  async function handleScan({ data }: BarcodeScanningResult) {
+  function handleScan({ data }: BarcodeScanningResult) {
+    startFromCode(data);
+  }
+
+  // A scanned code: starts a match against its player.
+  async function startFromCode(data: string) {
     if (isScanLocked.current || !profile || data === profile.qr_code) return;
     isScanLocked.current = true;
     setMessage('Starting match…');
@@ -131,6 +137,31 @@ export default function PlayScreen() {
         setMessage(null);
       }, RETRY_DELAY_MS);
     }
+  }
+
+  // Dev only: plays the other phone's part with the backend's test bot. "Scan bot" feeds the
+  // bot's code to the same handler the camera uses; "Bot scans me" starts a match that this
+  // screen's polling picks up like a real one.
+  function renderDevButtons() {
+    if (!__DEV__) return null;
+    return (
+      <View style={[styles.devButtons, { top: inset.top + 8 }]}>
+        <Pressable
+          hitSlop={8}
+          onPress={() =>
+            resetTestBot()
+              .then(startFromCode)
+              .catch(() => setMessage('Test bot unavailable'))
+          }>
+          <Text style={styles.devButton}>Scan bot (dev)</Text>
+        </Pressable>
+        <Pressable
+          hitSlop={8}
+          onPress={() => botScansMe().catch(() => setMessage('Test bot unavailable'))}>
+          <Text style={styles.devButton}>Bot scans me (dev)</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   const swipeDownResponder = useRef(
@@ -179,6 +210,7 @@ export default function PlayScreen() {
           onPress={() => (permission.canAskAgain ? requestPermission() : Linking.openSettings())}>
           <Text style={styles.link}>Allow camera to scan</Text>
         </Pressable>
+        {renderDevButtons()}
       </View>
     );
   }
@@ -221,6 +253,7 @@ export default function PlayScreen() {
         </View>
         <Text style={styles.status}>{message ?? 'Scan their code'}</Text>
       </View>
+      {renderDevButtons()}
     </View>
   );
 }
@@ -277,6 +310,18 @@ function useFullBrightness() {
 }
 
 const styles = StyleSheet.create({
+  devButtons: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 20,
+    position: 'absolute',
+  },
+  devButton: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 18,
+    textDecorationLine: 'underline',
+  },
   screen: {
     backgroundColor: PAPER,
     flex: 1,

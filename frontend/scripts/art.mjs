@@ -19,7 +19,7 @@ const DATA_OUTPUT = path.join(COMPONENTS, 'art.generated.ts');
 const GALLERY_OUTPUT = path.join(COMPONENTS, 'gallery.generated.tsx');
 
 // Every sticker is drawn on this square artboard, so a 5-unit stroke means the same thing in each.
-const STICKER_CANVAS = 128;
+const STICKER_CANVAS = 512;
 
 // Folder → kind of art. A skeleton's subfolder decides how its component fits it to the screen.
 const KINDS = {

@@ -19,7 +19,8 @@ Rule of thumb: **if its line has to match the border, it's a skeleton.**
 
 | Kind | Fit rule | Use when | Examples |
 |---|---|---|---|
-| Illustration | proportional | the lines are part of a picture | `assets/stickers/*`, `assets/illustrations/*` |
+| Illustration | proportional | the lines are part of a picture | `assets/illustrations/*` |
+| Sticker | proportional, stroke fixed | a sticker picture: scales as a whole but its line is always `STROKE.width` | `assets/stickers/*` (`StickerArt`) |
 | Skeleton | `fitSpan` | a line across a width: ends land on 0 and `width`, height and wave unchanged | `SeparatingLine` |
 | Skeleton | `fitCorners` | a frame around content: corners keep their exact shape, only the sides stretch | `ScreenBorder`, `StickerPopup` |
 | Skeleton | `fitUniform` | a small fixed-aspect shape with a narrow size range: scaled evenly, stroke fixed | `DayBox` |
@@ -57,7 +58,7 @@ assets/skeletons/frames/  fitCorners: frames and borders around content
 assets/skeletons/lines/   fitSpan: lines that run across a width
 assets/skeletons/shapes/  fitUniform: small fixed-shape items
 assets/illustrations/     pictures that scale as a whole
-assets/stickers/          sticker pictures, all on one 128×128 artboard (shown by StickerArt)
+assets/stickers/          sticker pictures, all on one 512×512 artboard (shown by StickerArt)
 design-reference/         reference files that aren't used by the app
 ```
 
@@ -84,8 +85,10 @@ Shared values (line width, ink and paper colors, font) are in `constants/theme.t
   Figma names `... (Stroke)` are outlines. Brush and variable-width strokes are also outlines once
   exported, so keep those for illustrations.
 - **Artboard:** tight around the drawing. Figma's export bounds include the stroke, so the viewBox
-  starts at `0 0` with half a stroke of margin. Stickers all share one 128×128 artboard so a
-  5-unit line means the same thing in each.
+  starts at `0 0` with half a stroke of margin. Stickers all share one 512×512 artboard; their
+  exported stroke width is ignored (`assets/stickers/.svgrrc` strips it at bundle time) and
+  `StickerArt` draws every sticker's line at `STROKE.width` points, whatever size it's shown at.
+  After changing `.svgrrc`, restart Metro with `npx expo start --clear`.
 - **Name** the frame in kebab-case, the same as the file (`day-box-2`). No version suffixes;
   git keeps the history.
 - **Export** as SVG with "Outline text" on, "Include id attribute" off, "Simplify stroke" on.
@@ -132,7 +135,7 @@ new drawing has no component yet.
 - **Skeletons:** only `<path>` elements; not filled; stroke width equals `STROKE.width`; path data
   readable. Any SVG path command except arcs is fine: the parser converts everything to absolute
   cubic curves and fails loudly on what it can't read.
-- **Stickers:** a warning (not an error) if the artboard isn't 128×128.
+- **Stickers:** a warning (not an error) if the artboard isn't 512×512.
 
 ## Rules for skeleton components
 
@@ -165,7 +168,7 @@ new drawing has no component yet.
 
 ## Still to do
 
-- **Stickers:** redraw all eight on the shared 128×128 artboard (the script warns until then).
+- **Stickers:** redraw `thinker` on the shared 512×512 artboard (the script warns until then).
 - **Day boxes and separator:** `shapes/day-box-*.svg` had their hand-edited viewBoxes reset and
   `lines/separator.svg` was rebuilt from a hand-derived centerline (the original outline is in
   `design-reference/`). Re-export all four from Figma as strokes when convenient.

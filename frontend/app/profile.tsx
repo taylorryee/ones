@@ -100,9 +100,6 @@ export default function ProfileScreen() {
   return (
     <View style={styles.safeArea} {...swipeUpResponder.panHandlers}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.push('/test-challenge')} style={styles.challengeButton}>
-          <Text style={styles.challengeButtonText}>Challenge</Text>
-        </Pressable>
         <Pressable onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutButtonText}>Log Out</Text>
         </Pressable>
@@ -113,7 +110,10 @@ export default function ProfileScreen() {
         <Text style={styles.rating}>Rating {profile.rating}</Text>
         {archetype && (
           <View style={styles.archetypeBadge}>
-            <archetype.icon width={16} height={16} />
+            <View style={{ height: 16, width: 16 }}>
+              {/* Too small for the usual 5pt line. */}
+              <StickerArt lineWidth={1.5} slug={archetype.slug} />
+            </View>
             <Text style={styles.archetypeText}>{archetype.name}</Text>
           </View>
         )}
@@ -166,20 +166,9 @@ const styles = StyleSheet.create({
   topBar: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: 20,
     paddingTop: 12,
-  },
-  challengeButton: {
-    backgroundColor: '#111827',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  challengeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
   },
   logoutButton: {
     paddingHorizontal: 8,
