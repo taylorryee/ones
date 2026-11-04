@@ -11,7 +11,7 @@ class Player(Base):
     password_hash = Column(String, nullable=True)
     wins = Column(Integer, nullable=False, default=0)
     losses = Column(Integer, nullable=False, default=0)
-    rating = Column(Integer, nullable=False, default=1200)
+    rating = Column(Integer, nullable=False, default=900)
     qr_code = Column(String, unique=True, nullable=False, index=True)
     archetype_sticker_id = Column(
         Integer, ForeignKey("stickers.id", ondelete="SET NULL"), nullable=True

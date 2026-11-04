@@ -24,17 +24,22 @@ import type { DayFill } from "@/hooks/useDayFills";
 const SWIPE_DISTANCE = 0.2;
 const SWIPE_VELOCITY = 300;
 const SNAP_SPRING = {
-  damping: 40,
+  damping: 36,
   mass: 1,
   overshootClamping: true,
   stiffness: 320,
 };
+// Dragging past the first or last month the calendar can show stretches it like a rubber band:
+// it follows the finger at this share of its speed to begin with, then ever less, and never
+// further than this share of a month, so it springs back from the same place on release.
+const EDGE_RESISTANCE = 0.65;
+const EDGE_STRETCH = 3;
 // How far a finger moves sideways before the drag starts, or up and down before it's left alone.
 const DRAG_SLOP = 10;
 // After landing on another month its name fades in, stays, then fades out over the grid.
-const NAME_FADE_IN = 480;
-const NAME_HOLD = 1050;
-const NAME_FADE_OUT = 900;
+const NAME_FADE_IN = 100;
+const NAME_HOLD = 650;
+const NAME_FADE_OUT = 250;
 // Name size as a share of the calendar height; long names shrink to fit the width.
 const NAME_SCALE = 0.2;
 // Size of the games-played line under the name, as a share of the calendar height.
@@ -60,8 +65,28 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.min(max, Math.max(min, value));
 };
 
+// `value` kept to `min`..`max`, except that going past either end still moves a little, by less
+// and less, up to `maxStretch`.
+const rubberBand = (
+  value: number,
+  min: number,
+  max: number,
+  maxStretch: number,
+) => {
+  "worklet";
+  const stretch = (past: number) =>
+    maxStretch * (1 - 1 / ((past * EDGE_RESISTANCE) / maxStretch + 1));
+  if (value < min) {
+    return min - stretch(min - value);
+  }
+  if (value > max) {
+    return max + stretch(value - max);
+  }
+  return value;
+};
+
 // The calendar, opening on `year`/`month` (0-based, like Date). Swiping right shows the month
-// before, swiping left comes back, never past `month`. Each month takes a whole frame width
+// before, swiping left comes back; past `month` it only stretches and springs back. Each month takes a whole frame width
 // (`pitch`) and starts `inset` into it, so months slide in and out from under the border. Only the
 // shown month and the months next to it are mounted. `playedTimes` are the player's confirmed games,
 // counted under the month's name; null while loading, which leaves the count out. `fills` and
@@ -96,6 +121,10 @@ export function MonthPager({
   // Where the months were when the drag started, less the slop the finger moved to start it.
   const dragStart = useSharedValue(0);
   const nameOpacity = useSharedValue(0);
+  // Whether the month's name should still fade in once the months settle. Tapping a day clears it.
+  const nameWanted = useSharedValue(false);
+  // Whether the name is on its way in, showing or on its way out. Days can't be tapped meanwhile.
+  const nameActive = useSharedValue(false);
   // The frame width the months were last placed for.
   const placedPitch = useRef(pitch);
 
@@ -118,17 +147,21 @@ export function MonthPager({
       // are if they're still sliding.
       cancelAnimation(nameOpacity);
       nameOpacity.set(0);
+      nameWanted.set(false);
+      nameActive.set(false);
       cancelAnimation(offset);
       dragStart.set(offset.get() - event.translationX);
     },
     onUpdate: (event) => {
-      // One month back, and one forward unless this is already the latest month.
+      // One month back, and one forward unless this is already the latest month; a little
+      // further than that stretches.
       const latest = Math.min(committed.get() + 1, 0);
       offset.set(
-        clamp(
+        rubberBand(
           dragStart.get() + event.translationX,
           -latest * pitch,
           -(committed.get() - 1) * pitch,
+          pitch * EDGE_STRETCH,
         ),
       );
     },
@@ -148,24 +181,32 @@ export function MonthPager({
         target = from - 1;
       }
       target = clamp(target, from - 1, latest);
+      // Released while stretched, the months spring straight back; the finger's speed would carry
+      // them further out first.
+      const stretched =
+        offset.get() < -latest * pitch || offset.get() > -(from - 1) * pitch;
       // Set straight away rather than when the snap ends, so a swipe that starts while the month
       // is still sliding in moves on from it instead of landing back on the same month.
       committed.set(target);
+      nameWanted.set(target !== from);
       scheduleOnRN(setPosition, target);
       offset.set(
         withSpring(
           -target * pitch,
-          { ...SNAP_SPRING, velocity: event.velocityX },
+          { ...SNAP_SPRING, velocity: stretched ? 0 : event.velocityX },
           (finished) => {
             // Interrupted only by another drag, which settles the months itself. Stopping
             // nameOpacity in that drag cancels the whole fade, hold included.
-            if (finished && target !== from) {
+            if (finished && nameWanted.get()) {
+              nameActive.set(true);
               nameOpacity.set(
                 withSequence(
                   withTiming(1, { duration: NAME_FADE_IN }),
                   withDelay(
                     NAME_HOLD,
-                    withTiming(0, { duration: NAME_FADE_OUT }),
+                    withTiming(0, { duration: NAME_FADE_OUT }, () => {
+                      nameActive.set(false);
+                    }),
                   ),
                 ),
               );
@@ -175,6 +216,19 @@ export function MonthPager({
       );
     },
   });
+
+  // Days can't be tapped from when the name starts fading in until it's fully gone. A tap before
+  // that, while the months are still settling, means the player is done looking at the month, so
+  // the name is dropped and never shows.
+  function onPressDayCancelingName(date: Date) {
+    if (nameActive.get()) {
+      return;
+    }
+    nameWanted.set(false);
+    cancelAnimation(nameOpacity);
+    nameOpacity.set(0);
+    onPressDay(date);
+  }
 
   const nameStyle = useAnimatedStyle(() => ({ opacity: nameOpacity.get() }));
 
@@ -222,7 +276,7 @@ export function MonthPager({
                   onFillDrawn?.(new Date(shownYear, shownMonth, day))
                 }
                 onPressDay={(day) =>
-                  onPressDay(new Date(shownYear, shownMonth, day))
+                  onPressDayCancelingName(new Date(shownYear, shownMonth, day))
                 }
                 width={size.width}
                 year={shownYear}
@@ -256,9 +310,7 @@ export function MonthPager({
                 styles.nameText,
                 { fontSize: size.height * PLAYED_SCALE },
               ]}
-            >
-              {`You hooped ${played} ${played === 1 ? "time" : "times"} this month`}
-            </Text>
+            ></Text>
           )}
         </Animated.View>
       </View>

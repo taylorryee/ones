@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from database import get_db
 from models.player import Player
-from schemas.match import MatchCreate, MatchRead, MatchScore, MatchSubmit, ResultToAnswer
+from schemas.match import MatchCreate, MatchRead, MatchScore, MatchSubmit, PlayedGame, ResultToAnswer
 from services import match as service
 
 
@@ -31,6 +31,15 @@ def get_played_times(
     current_user: Player = Depends(get_current_user),
 ):
     return service.get_played_times(db, current_user)
+
+
+# Every played match with its result, for the stats of a day the player taps on the calendar.
+@router.get("/me/games", response_model=list[PlayedGame])
+def get_played_games(
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.get_played_games(db, current_user)
 
 
 # The Play screen polls this so the player who was scanned learns that a match started.

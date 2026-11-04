@@ -1,6 +1,6 @@
 import { QuestionPopup } from '@/components/QuestionPopup';
 
-// Asks whether the player hooped on `date`. Yes calls onYes; No or a tap outside closes it.
+// Asks whether the player hooped on `date`. Yes calls onYes; Not yet or a tap outside closes it, and the day can be asked again later.
 export function HoopPopup({
   date,
   onYes,
@@ -15,7 +15,7 @@ export function HoopPopup({
       onClose={onClose}
       options={[
         { label: 'Yes', onPress: () => date && onYes(date) },
-        { label: 'No', onPress: () => {} },
+        { label: 'Not yet', onPress: () => {} },
       ]}
       question="U hoop today?"
       visible={date !== null}

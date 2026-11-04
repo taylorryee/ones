@@ -20,6 +20,13 @@ COUNTED_STATUSES = ["reported", "confirmed"]
 # Matches that were played, whatever happened to the result.
 PLAYED_STATUSES = ["reported", "confirmed", "disputed"]
 ELO_K_FACTOR = 32
+# A new player's first games move their rating faster, so they reach their real level sooner.
+# An established player facing them risks (and gains) less, since the newcomer's rating is
+# still a guess. A player is provisional until they have this many rated results (unrated
+# rematches tell us nothing about their level, so they don't count).
+PROVISIONAL_GAMES = 10
+PROVISIONAL_K_FACTOR = 64
+VS_PROVISIONAL_K_FACTOR = 16
 # Anti-farming: the same two players' games within this window count for less Elo each time.
 # The first game is full stakes, then each entry in turn; any game past the list is unrated
 # (it still counts for wins, losses and stickers).
@@ -28,9 +35,36 @@ REPEAT_RATING_PERCENTS = [100, 50, 25]
 # The phone's offset from UTC can't be more than this, so a bad value can't stretch the window.
 MAX_TZ_OFFSET_MINUTES = 14 * 60
 
-def get_elo_win_change(winner_rating: int, loser_rating: int):
-    expected_score = 1 / (1 + 10 ** ((loser_rating - winner_rating) / 400))
-    return round(ELO_K_FACTOR * (1 - expected_score))
+def is_provisional(db: Session, player: Player):
+    rated_games = (
+        db.query(Match.id)
+        .filter(
+            Match.status.in_(COUNTED_STATUSES),
+            Match.rating_percent > 0,
+            (Match.playerOne_id == player.id) | (Match.playerTwo_id == player.id),
+        )
+        .count()
+    )
+    return rated_games < PROVISIONAL_GAMES
+
+def get_k_factor(db: Session, player: Player, opponent: Player):
+    if is_provisional(db, player):
+        return PROVISIONAL_K_FACTOR
+    if is_provisional(db, opponent):
+        return VS_PROVISIONAL_K_FACTOR
+    return ELO_K_FACTOR
+
+# The player's chance of beating the opponent, from 0 to 1.
+def get_expected_score(player_rating: int, opponent_rating: int):
+    return 1 / (1 + 10 ** ((opponent_rating - player_rating) / 400))
+
+# What the player gains for a win and loses for a loss against this opponent (both positive),
+# scaled by rating_percent. Each player uses their own K-factor, so the two sides of a match
+# needn't add up to zero while either player is provisional.
+def get_rating_stakes(db: Session, player: Player, opponent: Player, rating_percent: int):
+    k = get_k_factor(db, player, opponent) * rating_percent / 100
+    expected = get_expected_score(player.rating, opponent.rating)
+    return round(k * (1 - expected)), round(k * expected)
 
 # How much of the normal Elo stakes a new match between these two players is worth, from how many
 # counted results they've had against each other within REPEAT_WINDOW.
@@ -101,15 +135,15 @@ def start_match(db: Session, player_one: Player, player_two: Player):
         raise HTTPException(status_code=400, detail="Opponent already has an active match")
 
     rating_percent = get_repeat_rating_percent(db, player_one.id, player_two.id)
+    one_win, one_loss = get_rating_stakes(db, player_one, player_two, rating_percent)
+    two_win, two_loss = get_rating_stakes(db, player_two, player_one, rating_percent)
     db_match = Match(
         playerOne_id=player_one.id,
         playerTwo_id=player_two.id,
-        playerOne_win_rating_change=round(
-            get_elo_win_change(player_one.rating, player_two.rating) * rating_percent / 100
-        ),
-        playerTwo_win_rating_change=round(
-            get_elo_win_change(player_two.rating, player_one.rating) * rating_percent / 100
-        ),
+        playerOne_win_rating_change=one_win,
+        playerOne_loss_rating_change=one_loss,
+        playerTwo_win_rating_change=two_win,
+        playerTwo_loss_rating_change=two_loss,
         rating_percent=rating_percent,
         status="pending",
     )
@@ -183,6 +217,47 @@ def get_played_times(db: Session, player: Player):
     return [row.submitted_at for row in rows]
 
 
+# Each of the player's played matches, newest first, with the opponent and the player's Elo
+# change, so the app can show the stats for any day in the phone's own time zone.
+def get_played_games(db: Session, player: Player):
+    matches = (
+        db.query(Match)
+        .filter(
+            Match.status.in_(PLAYED_STATUSES),
+            Match.submitted_at.isnot(None),
+            (Match.playerOne_id == player.id) | (Match.playerTwo_id == player.id),
+        )
+        .order_by(Match.submitted_at.desc())
+        .all()
+    )
+    opponent_ids = {
+        m.playerTwo_id if m.playerOne_id == player.id else m.playerOne_id for m in matches
+    }
+    names = dict(db.query(Player.id, Player.name).filter(Player.id.in_(opponent_ids)).all())
+
+    games = []
+    for db_match in matches:
+        finalize_if_due(db, db_match)
+        you_won = db_match.winner_id == player.id
+        if db_match.status == "disputed":
+            change = 0
+        elif you_won:
+            change = get_winner_rating_change(db_match)
+        else:
+            change = -get_loser_rating_change(db_match)
+        opponent_id = db_match.playerTwo_id if db_match.playerOne_id == player.id else db_match.playerOne_id
+        games.append(
+            {
+                "played_at": db_match.submitted_at,
+                "opponent_name": names.get(opponent_id, "?"),
+                "you_won": you_won,
+                "rating_change": change,
+                "status": db_match.status,
+            }
+        )
+    return games
+
+
 def get_player_matches(db: Session, player_id: int):
     player = db.query(Player).filter(Player.id == player_id).first()
 
@@ -212,17 +287,26 @@ def get_winner_rating_change(db_match: Match):
     )
 
 
+def get_loser_rating_change(db_match: Match):
+    return (
+        db_match.playerTwo_loss_rating_change
+        if db_match.winner_id == db_match.playerOne_id
+        else db_match.playerOne_loss_rating_change
+    )
+
+
 # Moves Elo and the win/loss counts by `direction` (1 to apply the result, -1 to undo it).
 # Done in SQL (rating = rating + x), so another match changing the same player at the same
 # moment can't overwrite it.
 def shift_record(db: Session, db_match: Match, direction: int):
-    change = get_winner_rating_change(db_match) * direction
+    gain = get_winner_rating_change(db_match) * direction
+    loss = get_loser_rating_change(db_match) * direction
     db.query(Player).filter(Player.id == db_match.winner_id).update(
-        {Player.wins: Player.wins + direction, Player.rating: Player.rating + change},
+        {Player.wins: Player.wins + direction, Player.rating: Player.rating + gain},
         synchronize_session=False,
     )
     db.query(Player).filter(Player.id == get_loser_id(db_match)).update(
-        {Player.losses: Player.losses + direction, Player.rating: Player.rating - change},
+        {Player.losses: Player.losses + direction, Player.rating: Player.rating - loss},
         synchronize_session=False,
     )
 

@@ -51,7 +51,9 @@ type Match = {
   playerOne_score: number | null;
   playerTwo_score: number | null;
   playerOne_win_rating_change: number;
+  playerOne_loss_rating_change: number;
   playerTwo_win_rating_change: number;
+  playerTwo_loss_rating_change: number;
   // Share of the normal Elo stakes: lower when the same two players keep playing each other.
   rating_percent: number;
   status: string;
@@ -250,8 +252,8 @@ export default function MatchScreen() {
     ? match?.playerOne_win_rating_change
     : match?.playerTwo_win_rating_change) ?? 0;
   const yourLossRatingChange = (isPlayerOne
-    ? match?.playerTwo_win_rating_change
-    : match?.playerOne_win_rating_change) ?? 0;
+    ? match?.playerOne_loss_rating_change
+    : match?.playerTwo_loss_rating_change) ?? 0;
   const confirmedRatingChange =
     match?.winner_id === profile?.id ? yourWinRatingChange : -yourLossRatingChange;
 

@@ -6,6 +6,24 @@ export async function getPlayedTimes() {
   return response.data.map((time) => new Date(time));
 }
 
+// One of the signed-in player's played matches. rating_change is their own Elo change (0 when
+// the result was disputed and thrown out).
+export type PlayedGame = {
+  played_at: Date;
+  opponent_name: string;
+  you_won: boolean;
+  rating_change: number;
+  status: 'reported' | 'confirmed' | 'disputed';
+};
+
+// Every played match, newest first, for the stats of a day tapped on the calendar.
+export async function getPlayedGames(): Promise<PlayedGame[]> {
+  const response = await api.get<(Omit<PlayedGame, 'played_at'> & { played_at: string })[]>(
+    '/matches/me/games'
+  );
+  return response.data.map((game) => ({ ...game, played_at: new Date(game.played_at) }));
+}
+
 // Starts a match against the player whose QR code was scanned. Returns the new match's id.
 export async function createChallenge(opponentQr: string) {
   const response = await api.post<{ id: number }>('/matches/challenge', { opp_qr: opponentQr });

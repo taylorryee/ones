@@ -2,12 +2,9 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
 
-import {
-  getWallLayout,
-  SHOWCASE_SLOTS,
-  SIDE_PADDING,
-} from '@/components/badgeWallLayout';
+import { getWallLayout, SHOWCASE_SLOTS, SIDE_PADDING } from '@/components/badgeWallLayout';
 import { CardCarousel } from '@/components/CardCarousel';
+import { DayStatsPopup } from '@/components/DayStatsPopup';
 import { GlassesGleam } from '@/components/GlassesGleam';
 import { HoopPopup } from '@/components/HoopPopup';
 import { badgeWallCards } from '@/components/cards/badgeWallCards';
@@ -27,7 +24,9 @@ import { consumeMatchPlayed, HOME } from '@/services/matchFlow';
 import {
   agreeWithResult,
   disputeResult,
+  getPlayedGames,
   getPlayedTimes,
+  type PlayedGame,
   getResultsToAnswer,
   type ResultToAnswer,
 } from '@/services/matches';
@@ -52,6 +51,18 @@ export default function BadgeWallScreen() {
   const { fillDay, fillDaysIfEmpty } = dayFills;
   // The day whose "U hoop today?" popup is open.
   const [askedDay, setAskedDay] = useState<Date | null>(null);
+  // Every game the player has played, loaded ahead so a day's stats popup opens with its final
+  // content (null until the first load).
+  const [playedGames, setPlayedGames] = useState<PlayedGame[] | null>(null);
+  // The past day whose stats popup is open.
+  const [statsDay, setStatsDay] = useState<Date | null>(null);
+  const statsGames = useMemo(
+    () =>
+      statsDay && playedGames
+        ? playedGames.filter((game) => dayKey(game.played_at) === dayKey(statsDay))
+        : null,
+    [playedGames, statsDay],
+  );
   // Results opponents reported that this player hasn't answered, asked about one at a time.
   const [resultsToAnswer, setResultsToAnswer] = useState<ResultToAnswer[]>([]);
   const resultToAnswer = resultsToAnswer[0] ?? null;
@@ -60,7 +71,7 @@ export default function BadgeWallScreen() {
   const contentInset = useContentInset();
   const layout = useMemo(
     () => getWallLayout(contentSize, contentInset),
-    [contentSize, contentInset]
+    [contentSize, contentInset],
   );
   // As large as the Elo's box allows, by its height or, for a long number, its width.
   const eloHeight = profile
@@ -104,6 +115,15 @@ export default function BadgeWallScreen() {
         })
         .catch(() => {});
 
+      // Ahead of any tap on a day. If it fails, opening a day tries again.
+      getPlayedGames()
+        .then((games) => {
+          if (isActive) {
+            setPlayedGames(games);
+          }
+        })
+        .catch(() => {});
+
       // Read now, before anything async, so it's used by this visit only.
       const matchJustPlayed = consumeMatchPlayed();
 
@@ -126,7 +146,7 @@ export default function BadgeWallScreen() {
       return () => {
         isActive = false;
       };
-    }, [fillDay, fillDaysIfEmpty])
+    }, [fillDay, fillDaysIfEmpty]),
   );
 
   // Vertical only, so it leaves the calendar's and the cards' sideways swipes alone. Off while a
@@ -143,7 +163,7 @@ export default function BadgeWallScreen() {
           }
         },
       }),
-    [openCard]
+    [openCard],
   );
 
   // "That's right" leaves the result as it is; a win that earned a sticker shows it. Dispute
@@ -179,11 +199,31 @@ export default function BadgeWallScreen() {
     setSelectedSticker(sticker);
   }
 
-  // Asks about days that aren't colored in yet; a filled day does nothing for now.
+  // Today shows its stats once a game has been played on it, and otherwise asks "U hoop today?"
+  // until it's colored in; a past day shows its stats; a future day does nothing.
   function handleDayPress(date: Date) {
-    if (!dayFills.fills[dayKey(date)]) {
-      setAskedDay(date);
+    const key = dayKey(date);
+    const todayKey = dayKey(new Date());
+    if (key === todayKey) {
+      const playedToday = playedGames?.some((game) => dayKey(game.played_at) === key);
+      if (playedToday || dayFills.fills[key]) {
+        openDayStats(date);
+      } else {
+        setAskedDay(date);
+      }
+    } else if (key < todayKey) {
+      openDayStats(date);
     }
+  }
+
+  // Opens at once with the games loaded ahead, then refreshes them quietly, so a result disputed
+  // since the last look shows as it is now. If nothing has loaded and this fails too, the day
+  // shows as having no games.
+  function openDayStats(date: Date) {
+    setStatsDay(date);
+    getPlayedGames()
+      .then(setPlayedGames)
+      .catch(() => setPlayedGames((games) => games ?? []));
   }
 
   const { top, middle, bottom } = layout;
@@ -280,8 +320,14 @@ export default function BadgeWallScreen() {
         options={
           resultToAnswer
             ? [
-                { label: "That's right", onPress: () => answerResult(resultToAnswer, true) },
-                { label: 'Dispute', onPress: () => answerResult(resultToAnswer, false) },
+                {
+                  label: "That's right",
+                  onPress: () => answerResult(resultToAnswer, true),
+                },
+                {
+                  label: 'Dispute',
+                  onPress: () => answerResult(resultToAnswer, false),
+                },
               ]
             : []
         }
@@ -292,13 +338,19 @@ export default function BadgeWallScreen() {
               : `${resultToAnswer.opponent_name} says they beat you`
             : ''
         }
-        visible={resultToAnswer !== null && askedDay === null && selectedSticker === null}
+        visible={
+          resultToAnswer !== null &&
+          askedDay === null &&
+          statsDay === null &&
+          selectedSticker === null
+        }
       />
       <HoopPopup
         date={askedDay}
         onClose={() => setAskedDay(null)}
         onYes={(date) => dayFills.fillDay(date, HOOP_FILL_COLOR)}
       />
+      <DayStatsPopup date={statsDay} games={statsGames} onClose={() => setStatsDay(null)} />
     </View>
   );
 }

@@ -19,8 +19,12 @@ class Match(Base):
     playerOne_score = Column(Integer, nullable=True)
     playerTwo_score = Column(Integer, nullable=True)
 
+    # Each player's Elo stakes, fixed when the match starts: what they gain if they win and lose
+    # if they lose (both positive). Not zero-sum while either player is provisional.
     playerOne_win_rating_change = Column(Integer, nullable=False, default=0)
+    playerOne_loss_rating_change = Column(Integer, nullable=False, default=0, server_default="0")
     playerTwo_win_rating_change = Column(Integer, nullable=False, default=0)
+    playerTwo_loss_rating_change = Column(Integer, nullable=False, default=0, server_default="0")
     # Share of the normal Elo stakes this match is worth (lower for repeat opponents).
     rating_percent = Column(Integer, nullable=False, default=100, server_default="100")
 
