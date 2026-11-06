@@ -3,14 +3,20 @@
 import type { ReactNode } from 'react';
 
 import { ART, SKELETONS } from '@/components/art.generated';
+import { AddSlot } from '@/components/AddSlot';
 import { Flame } from '@/components/Flame';
 import { RotatingcardBorder } from '@/components/RotatingcardBorder';
 import { Test } from '@/components/Test';
+import { UnlockRays } from '@/components/UnlockRays';
 
 // Width the gallery uses as 100% for a drawing that is `width` wide in Figma.
 const base = (width: number) => Math.min(width, 240);
 
 export const GALLERY: { name: string; render: (scale: number) => ReactNode }[] = [
+  {
+    name: 'AddSlot',
+    render: (scale) => <AddSlot size={base(SKELETONS.addSlot.width) * scale} />,
+  },
   {
     name: 'Flame',
     render: (scale) => <Flame width={base(ART.flame.width) * scale} />,
@@ -22,5 +28,9 @@ export const GALLERY: { name: string; render: (scale: number) => ReactNode }[] =
   {
     name: 'Test',
     render: (scale) => <Test height={(base(SKELETONS.test.width) * scale * SKELETONS.test.height) / SKELETONS.test.width} width={base(SKELETONS.test.width) * scale} />,
+  },
+  {
+    name: 'UnlockRays',
+    render: (scale) => <UnlockRays size={base(SKELETONS.unlockRays.width) * scale} />,
   },
 ];

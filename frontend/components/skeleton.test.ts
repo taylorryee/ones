@@ -168,3 +168,10 @@ test('popup border stays inside the popup at every phone size', () => {
     assert.ok(maxX + half <= width + slack && maxY + half <= height + slack, `${width}: past bottom/right`);
   }
 });
+
+test('the unlock rays are centered, so they sit evenly around the badge', () => {
+  const rays = SKELETONS.unlockRays;
+  const { minX, minY, maxX, maxY } = boundsOf(rays.paths);
+  assert.ok(Math.abs((minX + maxX) / 2 - rays.width / 2) < 0.01);
+  assert.ok(Math.abs((minY + maxY) / 2 - rays.height / 2) < 0.01);
+});

@@ -66,6 +66,29 @@ def award_archetype_sticker(db: Session, player_id: int, sticker_id: int):
     return owned_sticker, "unlocked"
 
 
+def set_showcase(db: Session, player_id: int, slots: list[int | None]):
+    chosen = [player_sticker_id for player_sticker_id in slots if player_sticker_id is not None]
+    if len(chosen) != len(set(chosen)):
+        raise HTTPException(status_code=400, detail="A badge can only fill one slot")
+
+    owned = {
+        owned_sticker.id: owned_sticker
+        for owned_sticker in db.query(PlayerSticker).filter(PlayerSticker.player_id == player_id)
+    }
+    if any(player_sticker_id not in owned for player_sticker_id in chosen):
+        raise HTTPException(status_code=404, detail="Owned sticker not found")
+
+    # Cleared first, so two badges trading places never hold one slot at once.
+    for owned_sticker in owned.values():
+        owned_sticker.showcase_slot = None
+    db.flush()
+
+    for slot, player_sticker_id in enumerate(slots):
+        if player_sticker_id is not None:
+            owned[player_sticker_id].showcase_slot = slot
+    db.commit()
+
+
 def place_sticker(
     db: Session,
     player_id: int,

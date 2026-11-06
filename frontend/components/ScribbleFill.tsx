@@ -3,6 +3,7 @@ import Animated, {
   Easing,
   useAnimatedProps,
   useSharedValue,
+  withDelay,
   withTiming,
 } from 'react-native-reanimated';
 import { Path } from 'react-native-svg';
@@ -12,8 +13,8 @@ import { STROKE } from '@/constants/theme';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-// A scribble from buildScribble, drawn inside an existing Svg. With `animate` it draws itself in
-// from its start over `duration` ms, then calls `onDrawn`; without, it's drawn complete. Turning
+// A scribble from buildScribble, drawn inside an existing Svg. With `animate` it waits `delay` ms,
+// draws itself in from its start over `duration` ms, then calls `onDrawn`; without, it's drawn complete. Turning
 // `animate` on again draws it in again.
 export function ScribbleFill({
   d,
@@ -21,6 +22,7 @@ export function ScribbleFill({
   color,
   animate,
   duration,
+  delay = 0,
   onDrawn,
   strokeWidth = STROKE.fillWidth,
 }: {
@@ -29,6 +31,7 @@ export function ScribbleFill({
   color: string;
   animate: boolean;
   duration: number;
+  delay?: number;
   onDrawn?: () => void;
   strokeWidth?: number;
 }) {
@@ -43,13 +46,16 @@ export function ScribbleFill({
     const done = () => handleDrawn();
     progress.set(0);
     progress.set(
-      withTiming(1, { duration, easing: Easing.inOut(Easing.quad) }, (finished) => {
-        if (finished) {
-          scheduleOnRN(done);
-        }
-      })
+      withDelay(
+        delay,
+        withTiming(1, { duration, easing: Easing.inOut(Easing.quad) }, (finished) => {
+          if (finished) {
+            scheduleOnRN(done);
+          }
+        })
+      )
     );
-  }, [animate, duration, progress]);
+  }, [animate, delay, duration, progress]);
 
   // One dash the length of the path, slid along it. The gap is longer than the path plus its
   // round cap, so at 0 nothing shows, not even a dot.

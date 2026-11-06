@@ -36,7 +36,13 @@ class PlayerStickerRead(BaseModel):
     player_id: int
     earned_at: datetime
     level: int
+    showcase_slot: int | None
     sticker: StickerRead
     ball_placement: BallStickerPlacementRead | None
 
     model_config = {"from_attributes": True}
+
+
+class ShowcaseWrite(BaseModel):
+    # The player sticker in each badge wall slot, left to right; null leaves a slot empty.
+    slots: list[int | None] = Field(min_length=3, max_length=3)

@@ -12,10 +12,10 @@ export type ScribbleKind = (typeof SCRIBBLE_KINDS)[number];
 // How long each kind takes to draw in, the same on every phone. The spiral's path is longer, so
 // it gets a little more time.
 export const SCRIBBLE_DURATION: Record<ScribbleKind, number> = {
-  rows: 700,
-  columns: 650,
-  hatch: 750,
-  spiral: 900,
+  rows: 2000,
+  columns: 2000,
+  hatch: 2000,
+  spiral: 2000,
 };
 
 // Rise from one zig-zag stroke to the next, as a share of the line width. Neighbouring strokes are

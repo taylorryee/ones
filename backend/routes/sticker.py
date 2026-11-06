@@ -8,6 +8,7 @@ from schemas.sticker import (
     BallStickerPlacementWrite,
     BallStickerRead,
     PlayerStickerRead,
+    ShowcaseWrite,
     StickerRead,
 )
 from services import sticker as service
@@ -27,6 +28,16 @@ def get_inventory(
     current_user: Player = Depends(get_current_user),
 ):
     return service.get_player_inventory(db, current_user.id)
+
+
+@router.put("/showcase", status_code=status.HTTP_204_NO_CONTENT)
+def set_showcase(
+    showcase: ShowcaseWrite,
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    service.set_showcase(db, current_user.id, showcase.slots)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/ball/{player_id}", response_model=list[BallStickerRead])

@@ -1,8 +1,10 @@
 import type { CarouselCard } from '@/components/CardCarousel';
+import { PlayPanel } from '@/components/PlayPanel';
 import { BadgesPopupContent } from '@/components/cards/BadgesPopupContent';
 import { BiblePopupContent } from '@/components/cards/BiblePopupContent';
 import { StatsCard } from '@/components/cards/StatsCard';
 import { TextCard } from '@/components/cards/TextCard';
+import type { UserProfile } from '@/services/auth';
 import type { BadgeWallContent, Quote } from '@/services/cards';
 import type { OwnedSticker } from '@/services/stickers';
 
@@ -15,13 +17,17 @@ const FALLBACK_QUOTE: Quote = {
 };
 
 // The cards that rotate at the bottom of the badge wall, in order, filled from `content` (null
-// until it has loaded) and the player's `badges`. To add one, write a component in this folder
+// until it has loaded) and the player's `badges`; the badges popup reports its edits to
+// `onChangeBadges`, and the QR code popup moves on to a match with `onOpenMatch`. To add one, write a component in this folder
 // that fills the size it's given (or reuse TextCard), add an entry here (with `popup` to open one
 // when tapped) and, if it needs data from the server, a field to BadgeWallContent in
 // services/cards.ts and backend/schemas/cards.py.
 export function badgeWallCards(
   content: BadgeWallContent | null,
-  badges: OwnedSticker[]
+  badges: OwnedSticker[],
+  onChangeBadges: (badges: OwnedSticker[]) => void,
+  onOpenMatch: (matchId: number) => void,
+  profile: UserProfile | null
 ): CarouselCard[] {
   const quote = content?.quote ?? FALLBACK_QUOTE;
   return [
@@ -45,7 +51,14 @@ export function badgeWallCards(
     {
       key: 'badges',
       render: (size) => <TextCard size={size} title="Badges" />,
-      popup: (size) => <BadgesPopupContent badges={badges} size={size} />,
+      popup: (size) => (
+        <BadgesPopupContent badges={badges} onChangeBadges={onChangeBadges} size={size} />
+      ),
+    },
+    {
+      key: 'qr-code',
+      render: (size) => <TextCard size={size} title="QR code" />,
+      popup: (size) => <PlayPanel knownProfile={profile} onOpenMatch={onOpenMatch} size={size} />,
     },
     {
       key: 'tournaments',

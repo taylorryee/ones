@@ -29,6 +29,11 @@ class PlayerSticker(Base):
     __tablename__ = "player_stickers"
     __table_args__ = (
         UniqueConstraint("player_id", "sticker_id", name="uq_player_stickers_owner_asset"),
+        UniqueConstraint("player_id", "showcase_slot", name="uq_player_stickers_showcase_slot"),
+        CheckConstraint(
+            "showcase_slot >= 0 AND showcase_slot < 3",
+            name="ck_player_stickers_showcase_slot",
+        ),
     )
 
     id = Column(Integer, primary_key=True)
@@ -46,6 +51,8 @@ class PlayerSticker(Base):
     )
     earned_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     level = Column(Integer, nullable=False, default=1, server_default="1")
+    # Where on the badge wall this badge is shown, left to right; null if it isn't.
+    showcase_slot = Column(Integer, nullable=True)
 
     player = relationship("Player", back_populates="sticker_inventory")
     sticker = relationship("Sticker", back_populates="player_stickers")

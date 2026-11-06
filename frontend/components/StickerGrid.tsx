@@ -6,8 +6,8 @@ import { StickerArt } from '@/components/StickerArt';
 import type { OwnedSticker } from '@/services/stickers';
 
 const NUM_COLUMNS = 2;
-// Cells are never taller than this many rows fit in the visible part of the grid.
-const NUM_ROWS = 2;
+// By default, cells are never taller than this many rows fit in the visible part of the grid.
+const DEFAULT_ROWS = 2;
 // All spacing is a share of the cell size, so the grid keeps the same proportions on every screen.
 // On an iPhone 16 these come out at about 20px padding and 40px gaps.
 const GRID_PADDING_RATIO = 1 / 6;
@@ -19,11 +19,11 @@ const EMPTY_FONT_RATIO = 1 / 8;
 
 // The grid fills the whole list and can scroll under whatever covers its edges; the padding keeps
 // the first and last rows inside `content` when scrolled all the way.
-function getGridLayout(content: Size, inset: Insets) {
+function getGridLayout(content: Size, inset: Insets, rows: number) {
   const cellSizeFromWidth =
     content.width / (NUM_COLUMNS + GRID_PADDING_RATIO * 2 + CELL_GAP_RATIO * (NUM_COLUMNS - 1));
   const cellSizeFromHeight =
-    content.height / (NUM_ROWS + CELL_GAP_RATIO * (NUM_ROWS - 1) + GRID_BOTTOM_GAP_RATIO);
+    content.height / (rows + CELL_GAP_RATIO * (rows - 1) + GRID_BOTTOM_GAP_RATIO);
   const cellSize = Math.max(0, Math.min(cellSizeFromWidth, cellSizeFromHeight));
   const cellGap = cellSize * CELL_GAP_RATIO;
   // Centers the columns inside the content; equals the grid padding when the width decides the cell size.
@@ -50,13 +50,15 @@ export function StickerGrid({
   content,
   inset,
   onPressSticker,
+  rows = DEFAULT_ROWS,
 }: {
   stickers: OwnedSticker[] | null;
   content: Size;
   inset: Insets;
   onPressSticker: (sticker: OwnedSticker) => void;
+  rows?: number;
 }) {
-  const layout = useMemo(() => getGridLayout(content, inset), [content, inset]);
+  const layout = useMemo(() => getGridLayout(content, inset, rows), [content, inset, rows]);
 
   const data = useMemo<GridItem[]>(
     () => (stickers ?? []).map((sticker, index) => ({ key: `${sticker.id}-${index}`, sticker })),

@@ -28,6 +28,8 @@ export type OwnedSticker = {
   player_id: number;
   earned_at: string;
   level: number;
+  // Where on the badge wall it's shown, left to right; null if it isn't.
+  showcase_slot: number | null;
   sticker: StickerDefinition;
   ball_placement: Omit<BallStickerPlacement, 'sticker'> | null;
 };
@@ -40,6 +42,11 @@ export async function getStickerCatalog() {
 export async function getStickerInventory() {
   const response = await api.get<OwnedSticker[]>('/stickers/inventory');
   return response.data;
+}
+
+// `slots` is the owned sticker in each badge wall slot, left to right; null leaves a slot empty.
+export async function setShowcase(slots: (number | null)[]) {
+  await api.put('/stickers/showcase', { slots });
 }
 
 export async function getBallStickers(playerId: number) {

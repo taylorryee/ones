@@ -1,11 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PanResponder, StyleSheet, View } from 'react-native';
 
-import { getWallLayout, SHOWCASE_SLOTS, SIDE_PADDING } from '@/components/badgeWallLayout';
+import { BadgeShowcase } from '@/components/BadgeShowcase';
+import { getWallLayout, SIDE_PADDING } from '@/components/badgeWallLayout';
 import { CardCarousel } from '@/components/CardCarousel';
+import { dayColor } from '@/components/dayColors';
 import { DayStatsPopup } from '@/components/DayStatsPopup';
-import { GlassesGleam } from '@/components/GlassesGleam';
 import { HoopPopup } from '@/components/HoopPopup';
 import { badgeWallCards } from '@/components/cards/badgeWallCards';
 import { MonthPager } from '@/components/MonthPager';
@@ -14,7 +15,7 @@ import { OutlineNumber } from '@/components/OutlineNumber';
 import { fitOutlineNumber } from '@/components/outlineDigits';
 import { useContentInset, useContentSize } from '@/components/ScreenBorder';
 import { SeparatingLine } from '@/components/SeparatingLine';
-import { StickerArt } from '@/components/StickerArt';
+import { showcaseSlots } from '@/components/showcaseSlots';
 import { StickerPopup } from '@/components/StickerPopup';
 import { PAPER } from '@/constants/theme';
 import { dayKey, useDayFills } from '@/hooks/useDayFills';
@@ -32,11 +33,36 @@ import {
 } from '@/services/matches';
 import { getStickerInventory, type OwnedSticker } from '@/services/stickers';
 
-// The scribble a day is filled with when the player hooped: said so, or played a match.
-const HOOP_FILL_COLOR = '#F97316';
-// The sticker each showcase slot shows, left to right, until players can choose: the owned one
-// when there is one, so it opens its popup, otherwise just its picture. Thinker is the glasses.
-const SHOWCASE_STICKERS = ['thinker', 'cone', 'goat'];
+// TEMPORARY preview of the day colors: a made-up year of hooping. Every month back to 12 months ago
+// gets 7 to 26 random days, except October 2026, which is left full, and the current month, which
+// gets its share of that for the days so far. Never today or later. Delete before committing.
+function previewHoopDays() {
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const picked: Date[] = [];
+  for (let back = 0; back <= 12; back++) {
+    const first = new Date(today.getFullYear(), today.getMonth() - back, 1);
+    const year = first.getFullYear();
+    const month = first.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+    const open = Array.from({ length: days }, (_, index) => new Date(year, month, index + 1)).filter(
+      (date) => date < startOfToday
+    );
+    const wanted = 7 + Math.floor(Math.random() * 20);
+    const isOctober = year === 2026 && month === 9;
+    const count = isOctober ? days : Math.round((wanted * open.length) / days);
+    for (let index = 0; index < count; index++) {
+      const chosen = Math.floor(Math.random() * open.length);
+      picked.push(...open.splice(chosen, 1));
+    }
+  }
+  return picked;
+}
+
+// TEMPORARY: the made-up year, with about a third of its days shown as played, which color over
+// themselves the first time their month shows. Delete before committing.
+const PREVIEW_HOOP_DAYS = previewHoopDays();
+const PREVIEW_PLAYED_DAYS = PREVIEW_HOOP_DAYS.filter(() => Math.random() < 1 / 3);
 
 export default function BadgeWallScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -48,7 +74,13 @@ export default function BadgeWallScreen() {
   const [playedTimes, setPlayedTimes] = useState<Date[] | null>(null);
   // Colored-in calendar days: dayFills.fillDay(date, color) scribbles one in.
   const dayFills = useDayFills();
-  const { fillDay, fillDaysIfEmpty } = dayFills;
+  const { fillDaysIfEmpty, fillPlayedDays } = dayFills;
+
+  // TEMPORARY preview of the day colors, see previewHoopDays. Delete before committing.
+  useEffect(() => {
+    fillDaysIfEmpty(PREVIEW_HOOP_DAYS, dayColor);
+    fillPlayedDays(PREVIEW_PLAYED_DAYS, dayColor);
+  }, [fillDaysIfEmpty, fillPlayedDays]);
   // The day whose "U hoop today?" popup is open.
   const [askedDay, setAskedDay] = useState<Date | null>(null);
   // Every game the player has played, loaded ahead so a day's stats popup opens with its final
@@ -133,20 +165,25 @@ export default function BadgeWallScreen() {
         .then((times) => {
           if (isActive) {
             setPlayedTimes(times);
-            fillDaysIfEmpty(times, HOOP_FILL_COLOR);
+            // Today draws itself in below instead.
+            const todayKey = dayKey(new Date());
+            fillPlayedDays(
+              matchJustPlayed ? times.filter((time) => dayKey(time) !== todayKey) : times,
+              dayColor
+            );
           }
         })
         .catch(() => {})
         .finally(() => {
           if (isActive && matchJustPlayed) {
-            fillDay(new Date(), HOOP_FILL_COLOR);
+            fillPlayedDays([new Date()], dayColor, true);
           }
         });
 
       return () => {
         isActive = false;
       };
-    }, [fillDay, fillDaysIfEmpty]),
+    }, [fillPlayedDays]),
   );
 
   // Vertical only, so it leaves the calendar's and the cards' sideways swipes alone. Off while a
@@ -195,8 +232,10 @@ export default function BadgeWallScreen() {
     }
   }
 
-  function handleStickerPress(sticker: OwnedSticker) {
-    setSelectedSticker(sticker);
+  // The Modal would stay on top of the match, so the QR code popup closes first.
+  function handleOpenMatch(matchId: number) {
+    setOpenCard(null);
+    router.push({ pathname: '/match/[id]', params: { id: String(matchId) } });
   }
 
   // Today shows its stats once a game has been played on it, and otherwise asks "U hoop today?"
@@ -253,36 +292,19 @@ export default function BadgeWallScreen() {
           {profile && <OutlineNumber height={eloHeight} value={profile.rating} />}
         </View>
         <View
-          style={[
-            styles.showcaseRow,
-            {
-              gap: top.showcaseGap,
-              height: top.showcaseHeight,
-              // Out of the side padding, so the outer stickers reach the content edge.
-              marginHorizontal: -SIDE_PADDING,
-              marginTop: top.eloGap,
-            },
-          ]}>
-          {Array.from({ length: SHOWCASE_SLOTS }, (_, index) => {
-            const slug = SHOWCASE_STICKERS[index];
-            const sticker = stickers.find((owned) => owned.sticker.slug === slug);
-            const art = slug === 'thinker' ? <GlassesGleam /> : <StickerArt slug={slug} />;
-            const isMiddle = index === Math.floor(SHOWCASE_SLOTS / 2);
-            const size = {
-              height: top.slot,
-              width: top.slot,
-              marginTop: isMiddle ? top.slotDip : 0,
-            };
-            return sticker ? (
-              <Pressable key={index} onPress={() => handleStickerPress(sticker)} style={size}>
-                {art}
-              </Pressable>
-            ) : (
-              <View key={index} style={size}>
-                {art}
-              </View>
-            );
-          })}
+          style={{
+            height: top.showcaseHeight,
+            // Out of the side padding, so the outer stickers reach the content edge.
+            marginHorizontal: -SIDE_PADDING,
+            marginTop: top.eloGap,
+          }}>
+          <BadgeShowcase
+            dip={top.slotDip}
+            gap={top.showcaseGap}
+            onPressSlot={(index) => setSelectedSticker(showcaseSlots(stickers)[index])}
+            slot={top.slot}
+            slots={showcaseSlots(stickers)}
+          />
         </View>
       </View>
       <View style={{ height: middle.height }}>
@@ -304,7 +326,7 @@ export default function BadgeWallScreen() {
       <View style={{ height: bottom.height }}>
         <View style={{ marginTop: bottom.cardTop }}>
           <CardCarousel
-            cards={badgeWallCards(cardContent, stickers)}
+            cards={badgeWallCards(cardContent, stickers, setStickers, handleOpenMatch, profile)}
             onOpen={setOpenCard}
             openKey={openCard}
             inset={contentInset.left}
@@ -348,7 +370,7 @@ export default function BadgeWallScreen() {
       <HoopPopup
         date={askedDay}
         onClose={() => setAskedDay(null)}
-        onYes={(date) => dayFills.fillDay(date, HOOP_FILL_COLOR)}
+        onYes={(date) => dayFills.fillDay(date, dayColor(date))}
       />
       <DayStatsPopup date={statsDay} games={statsGames} onClose={() => setStatsDay(null)} />
     </View>
@@ -372,11 +394,6 @@ const styles = StyleSheet.create({
   elo: {
     alignItems: 'center',
     justifyContent: 'flex-end',
-  },
-  showcaseRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'center',
   },
   separator: {
     left: 0,

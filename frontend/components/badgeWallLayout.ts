@@ -29,6 +29,41 @@ const SHOWCASE_GAP_SCALE = 0.18;
 // The middle slot sits this share of the slot size lower than the outer two, forming a smile.
 const SHOWCASE_SMILE_DIP = 0.25;
 
+// The largest row of sticker slots that fits `width` × `height`, in the badge wall's proportions.
+export function fitShowcaseRow(width: number, height: number) {
+  const slot = Math.max(
+    0,
+    Math.min(
+      width / (SHOWCASE_SLOTS + SHOWCASE_GAP_SCALE * (SHOWCASE_SLOTS - 1)),
+      height / (1 + SHOWCASE_SMILE_DIP)
+    )
+  );
+  return {
+    slot,
+    gap: slot * SHOWCASE_GAP_SCALE,
+    dip: slot * SHOWCASE_SMILE_DIP,
+    height: slot * (1 + SHOWCASE_SMILE_DIP),
+  };
+}
+
+// Badges card popup, from the top: the wall's stickers, a separator, then the badge grid, which
+// takes what's left as `gridHeight`. The list itself starts at `listTop`, halfway down the
+// separator, where the line's stroke always hides its edge, so badges scroll right up to the line;
+// `listPadding` keeps them SPACE below it at rest. The stickers never take more than this share of
+// the popup's height.
+const EDITOR_SHOWCASE_SHARE = 0.25;
+
+export function getShowcaseEditorLayout(size: Size) {
+  const showcase = fitShowcaseRow(size.width, size.height * EDITOR_SHOWCASE_SHARE);
+  return {
+    showcase,
+    lineTop: showcase.height + SPACE,
+    listTop: showcase.height + SPACE + SEPARATOR_HEIGHT / 2,
+    listPadding: SEPARATOR_HEIGHT / 2 + SPACE,
+    gridHeight: Math.max(0, size.height - showcase.height - SEPARATOR_HEIGHT - SPACE * 2),
+  };
+}
+
 const COLUMNS = 7;
 // Boxes are always sized for the tallest month, so they never change size between months.
 const MAX_ROWS = 6;
@@ -70,6 +105,37 @@ export function fitMonthGrid(width: number, height: number, rows = MAX_ROWS) {
     width: box * COLUMNS + GRID_GAP * (COLUMNS - 1),
     height: labelHeight + GRID_GAP + boxHeight * rows + GRID_GAP * (rows - 1),
   };
+}
+
+// Where a month's days fall: how many there are, the column of the 1st (0 is Sunday), and how many
+// rows of boxes they take. `month` is 0-based, like Date.
+export function monthShape(year: number, month: number) {
+  const days = new Date(year, month + 1, 0).getDate();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  return { days, firstWeekday, rows: Math.ceil((firstWeekday + days) / COLUMNS) };
+}
+
+// The day at `x`, `y` in a month grid centered in `width` × `height`, or null if there isn't one
+// there. Each day also takes its half of the gaps around it, so no tap between two days is lost.
+export function dayAt(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  year: number,
+  month: number
+) {
+  const { days, firstWeekday, rows } = monthShape(year, month);
+  const fit = fitMonthGrid(width, height, rows);
+  const gridX = x - (width - fit.width) / 2;
+  const gridY = y - (height - fit.height) / 2;
+  const column = Math.floor((gridX + fit.gap / 2) / (fit.box + fit.gap));
+  const row = Math.floor((gridY - fit.labelHeight - fit.gap / 2) / (fit.boxHeight + fit.gap));
+  if (column < 0 || column >= COLUMNS || row < 0 || row >= rows) {
+    return null;
+  }
+  const day = row * COLUMNS + column - firstWeekday + 1;
+  return day >= 1 && day <= days ? day : null;
 }
 
 // `content` is the area inside the border and `inset` the space from the frame to it. The screen

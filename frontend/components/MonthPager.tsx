@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
+import {
+  GestureDetector,
+  useCompetingGestures,
+  usePanGesture,
+  useTapGesture,
+} from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
@@ -13,29 +18,20 @@ import Animated, {
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 
+import { dayAt } from "@/components/badgeWallLayout";
 import { MonthGrid } from "@/components/MonthGrid";
 import type { Size } from "@/components/skeleton";
+import {
+  DRAG_SLOP,
+  EDGE_STRETCH,
+  releaseTarget,
+  rubberBand,
+  SNAP_SPRING,
+} from "@/components/swipePaging";
 import { FONT, INK, PAPER } from "@/constants/theme";
 import type { DayFill } from "@/hooks/useDayFills";
+import { useGradientFlow } from "@/hooks/useGradientFlow";
 
-// A swipe further than this share of a month, or faster than this (pt per s), moves one month;
-// a shorter, slower one springs back. The spring carries on at the finger's speed and never
-// overshoots, so a flick doesn't brake to a stop and the months never bounce past the border.
-const SWIPE_DISTANCE = 0.2;
-const SWIPE_VELOCITY = 300;
-const SNAP_SPRING = {
-  damping: 36,
-  mass: 1,
-  overshootClamping: true,
-  stiffness: 320,
-};
-// Dragging past the first or last month the calendar can show stretches it like a rubber band:
-// it follows the finger at this share of its speed to begin with, then ever less, and never
-// further than this share of a month, so it springs back from the same place on release.
-const EDGE_RESISTANCE = 0.65;
-const EDGE_STRETCH = 3;
-// How far a finger moves sideways before the drag starts, or up and down before it's left alone.
-const DRAG_SLOP = 10;
 // After landing on another month its name fades in, stays, then fades out over the grid.
 const NAME_FADE_IN = 100;
 const NAME_HOLD = 650;
@@ -59,31 +55,6 @@ const MONTHS = [
   "November",
   "December",
 ];
-
-const clamp = (value: number, min: number, max: number) => {
-  "worklet";
-  return Math.min(max, Math.max(min, value));
-};
-
-// `value` kept to `min`..`max`, except that going past either end still moves a little, by less
-// and less, up to `maxStretch`.
-const rubberBand = (
-  value: number,
-  min: number,
-  max: number,
-  maxStretch: number,
-) => {
-  "worklet";
-  const stretch = (past: number) =>
-    maxStretch * (1 - 1 / ((past * EDGE_RESISTANCE) / maxStretch + 1));
-  if (value < min) {
-    return min - stretch(min - value);
-  }
-  if (value > max) {
-    return max + stretch(value - max);
-  }
-  return value;
-};
 
 // The calendar, opening on `year`/`month` (0-based, like Date). Swiping right shows the month
 // before, swiping left comes back; past `month` it only stretches and springs back. Each month takes a whole frame width
@@ -112,6 +83,15 @@ export function MonthPager({
   onPressDay: (date: Date) => void;
   onFillDrawn?: (date: Date) => void;
 }) {
+  const { flow, stillFlow, sliding, restartFlow } = useGradientFlow();
+  // The slot whose gradients move, so the months off screen never repaint. Changes once the months
+  // settle, not when the finger lifts.
+  const [flowingSlot, setFlowingSlot] = useState(0);
+  // A month that starts moving was held at the start of the flow, so it carries on from there.
+  useEffect(() => {
+    restartFlow();
+  }, [flowingSlot, restartFlow]);
+
   // Months from `month`: 0 is that month, -1 the one before it.
   const [position, setPosition] = useState(0);
   // The same, for the gesture, which runs on the UI thread and can't wait for a render.
@@ -145,6 +125,7 @@ export function MonthPager({
     onActivate: (event) => {
       // A new swipe clears the last month's name straight away, and catches the months where they
       // are if they're still sliding.
+      sliding.set(true);
       cancelAnimation(nameOpacity);
       nameOpacity.set(0);
       nameWanted.set(false);
@@ -168,19 +149,14 @@ export function MonthPager({
     onDeactivate: (event) => {
       const from = committed.get();
       const latest = Math.min(from + 1, 0);
-      let target = Math.round(-offset.get() / pitch);
-      if (
-        event.translationX < -pitch * SWIPE_DISTANCE ||
-        event.velocityX < -SWIPE_VELOCITY
-      ) {
-        target = from + 1;
-      } else if (
-        event.translationX > pitch * SWIPE_DISTANCE ||
-        event.velocityX > SWIPE_VELOCITY
-      ) {
-        target = from - 1;
-      }
-      target = clamp(target, from - 1, latest);
+      const target = releaseTarget(
+        -offset.get() / pitch,
+        from - 1,
+        latest,
+        event.translationX,
+        event.velocityX,
+        pitch,
+      );
       // Released while stretched, the months spring straight back; the finger's speed would carry
       // them further out first.
       const stretched =
@@ -197,6 +173,10 @@ export function MonthPager({
           (finished) => {
             // Interrupted only by another drag, which settles the months itself. Stopping
             // nameOpacity in that drag cancels the whole fade, hold included.
+            if (finished) {
+              sliding.set(false);
+              scheduleOnRN(setFlowingSlot, target);
+            }
             if (finished && nameWanted.get()) {
               nameActive.set(true);
               nameOpacity.set(
@@ -230,6 +210,32 @@ export function MonthPager({
     onPressDay(date);
   }
 
+  // Finds the day at `x`, `y` in the month `slot` months from `month`, if there is one.
+  function pressMonthAt(slot: number, x: number, y: number) {
+    const first = new Date(year, month + slot, 1);
+    const shownYear = first.getFullYear();
+    const shownMonth = first.getMonth();
+    const day = dayAt(x, y, size.width, size.height, shownYear, shownMonth);
+    if (day !== null) {
+      onPressDayCancelingName(new Date(shownYear, shownMonth, day));
+    }
+  }
+
+  // A native gesture rather than a Pressable on each day, which can stay pressed through a swipe
+  // and open the day on release. Moving as far as a drag takes to start fails it, and racing the
+  // drag means only one of the two can ever win. Months past `month` are never shown.
+  const tap = useTapGesture({
+    maxDistance: DRAG_SLOP,
+    onActivate: (event) => {
+      const along = event.x - offset.get();
+      const slot = Math.floor(along / pitch);
+      if (slot <= 0) {
+        scheduleOnRN(pressMonthAt, slot, along - slot * pitch - inset, event.y);
+      }
+    },
+  });
+  const gesture = useCompetingGestures(pan, tap);
+
   const nameStyle = useAnimatedStyle(() => ({ opacity: nameOpacity.get() }));
 
   const current = new Date(year, month + position, 1);
@@ -251,7 +257,7 @@ export function MonthPager({
   }
 
   return (
-    <GestureDetector gesture={pan}>
+    <GestureDetector gesture={gesture}>
       <View style={{ height: size.height, width: pitch }}>
         {shown.map((slot) => {
           // Day 1, so stepping back from e.g. March 31st can't overflow into the wrong month.
@@ -270,14 +276,10 @@ export function MonthPager({
             >
               <MonthGrid
                 fills={fills}
+                flow={slot === flowingSlot ? flow : stillFlow}
                 height={size.height}
                 month={shownMonth}
-                onFillDrawn={(day) =>
-                  onFillDrawn?.(new Date(shownYear, shownMonth, day))
-                }
-                onPressDay={(day) =>
-                  onPressDayCancelingName(new Date(shownYear, shownMonth, day))
-                }
+                onFillDrawn={onFillDrawn}
                 width={size.width}
                 year={shownYear}
               />

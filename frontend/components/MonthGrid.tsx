@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import type { SharedValue } from 'react-native-reanimated';
 
-import { fitMonthGrid } from '@/components/badgeWallLayout';
+import { fitMonthGrid, monthShape } from '@/components/badgeWallLayout';
+import { dayGradient } from '@/components/dayColors';
 import { buildBoxPaths, DayBox } from '@/components/DayBox';
 import { FONT, INK } from '@/constants/theme';
 import { dayKey, type DayFill } from '@/hooks/useDayFills';
@@ -11,14 +13,17 @@ const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 // One month of day boxes, Sunday first, scaled to the largest size that fits `width` × `height`.
 // `month` is 0-based, like Date. Boxes are sized for a six-row month so they keep one size, but the
 // grid is only as tall as this month's rows, so centering it leaves even space above and below.
-// `fills` are the colored-in days from useDayFills.
-export function MonthGrid({
+// `fills` are the colored-in days from useDayFills. Days with a game are drawn in that day's gradient,
+// moved by `flow`. Only draws: MonthPager takes the taps, so they
+// can't be mistaken for swipes, and finds the day with dayAt, which must match this layout. Memoized
+// so that changing the shown month doesn't redraw the months that didn't change.
+export const MonthGrid = memo(function MonthGrid({
   year,
   month,
   width,
   height,
   fills,
-  onPressDay,
+  flow,
   onFillDrawn,
 }: {
   year: number;
@@ -26,16 +31,14 @@ export function MonthGrid({
   width: number;
   height: number;
   fills?: Record<string, DayFill>;
-  onPressDay: (day: number) => void;
-  onFillDrawn?: (day: number) => void;
+  flow: SharedValue<number>;
+  onFillDrawn?: (date: Date) => void;
 }) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstWeekday = new Date(year, month, 1).getDay();
-
-  const rows = Math.ceil((firstWeekday + daysInMonth) / 7);
+  const { days, firstWeekday, rows } = monthShape(year, month);
   const fit = fitMonthGrid(width, height, rows);
   // Every box is the same size, so the three outlines are fitted once for the whole month.
-  const boxPaths = useMemo(() => buildBoxPaths(fit.box), [fit.box]);
+  const boxPaths = buildBoxPaths(fit.box);
+  const todayKey = dayKey(new Date());
 
   return (
     <View style={[styles.grid, { gap: fit.gap, height: fit.height, width: fit.width }]}>
@@ -59,22 +62,25 @@ export function MonthGrid({
       {Array.from({ length: firstWeekday }, (_, index) => (
         <View key={`blank-${index}`} style={{ width: fit.box }} />
       ))}
-      {Array.from({ length: daysInMonth }, (_, index) => (
+      {Array.from({ length: days }, (_, index) => (
         <DayBox
           day={index + 1}
+          gradient={
+            fills?.[dayKey(new Date(year, month, index + 1))]?.played
+              ? { colors: dayGradient(new Date(year, month, index + 1)), flow }
+              : undefined
+          }
           fill={fills?.[dayKey(new Date(year, month, index + 1))]}
-          // Each day also takes taps on its half of the gaps around it.
-          hitSlop={fit.gap / 2}
+          isToday={dayKey(new Date(year, month, index + 1)) === todayKey}
           key={index + 1}
-          onFillDrawn={onFillDrawn}
-          onPress={onPressDay}
+          onFillDrawn={(day) => onFillDrawn?.(new Date(year, month, day))}
           paths={boxPaths}
           size={fit.box}
         />
       ))}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   grid: {

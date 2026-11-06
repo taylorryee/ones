@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg from 'react-native-svg';
 
 import { SKELETONS } from '@/components/art.generated';
@@ -82,7 +82,7 @@ export default function ArtGalleryScreen() {
             {[1, 2, 3].map((day) => (
               <Outlined key={day}>
                 <View style={{ height: size * BOX_RATIO, width: size }}>
-                  <DayBox day={day} onPress={() => {}} paths={paths} size={size} />
+                  <DayBox day={day} paths={paths} size={size} />
                 </View>
               </Outlined>
             ))}
@@ -103,16 +103,17 @@ export default function ArtGalleryScreen() {
               const color = FILL_COLORS[(FILL_COLORS.indexOf(fill?.color ?? '') + 1) % 3];
               return (
                 <Outlined key={day}>
-                  <View style={{ height: size * BOX_RATIO, width: size }}>
+                  <Pressable
+                    onPress={() => dayFills.fillDay(date, color)}
+                    style={{ height: size * BOX_RATIO, width: size }}>
                     <DayBox
                       day={day}
                       fill={fill}
                       onFillDrawn={() => dayFills.finishFill(date)}
-                      onPress={() => dayFills.fillDay(date, color)}
                       paths={paths}
                       size={size}
                     />
-                  </View>
+                  </Pressable>
                 </Outlined>
               );
             })}
