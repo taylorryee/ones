@@ -1,8 +1,11 @@
 import { Redirect } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg from 'react-native-svg';
 
 import { SKELETONS } from '@/components/art.generated';
+import { stickerArtwork } from '@/components/BadgeArt';
+import { BadgeUnlock } from '@/components/BadgeUnlock';
 import { BOX_RATIO, buildBoxPaths, DayBox } from '@/components/DayBox';
 import { GALLERY } from '@/components/gallery.generated';
 import { InkPath } from '@/components/InkPath';
@@ -42,6 +45,9 @@ function Outlined({ children }: { children: React.ReactNode }) {
 
 export default function ArtGalleryScreen() {
   const dayFills = useDayFills();
+  // The sticker whose unlock is playing.
+  const [unlocking, setUnlocking] = useState<(typeof ARCHETYPES)[number] | null>(null);
+  const unlockArtwork = unlocking ? stickerArtwork(unlocking.slug) : null;
 
   if (!__DEV__) {
     return <Redirect href="/" />;
@@ -170,6 +176,28 @@ export default function ArtGalleryScreen() {
           </Outlined>
         ))}
       </View>
+
+      <Text style={styles.heading}>Badge unlock (tap a sticker)</Text>
+      <View style={styles.wrap}>
+        {ARCHETYPES.map((archetype) => (
+          <Pressable
+            key={archetype.slug}
+            onPress={() => setUnlocking(archetype)}
+            style={{ height: STICKER_SIZE, width: STICKER_SIZE }}>
+            <StickerArt slug={archetype.slug} />
+          </Pressable>
+        ))}
+      </View>
+      <Modal animationType="fade" onRequestClose={() => setUnlocking(null)} visible={!!unlockArtwork}>
+        {unlocking && unlockArtwork && (
+          <BadgeUnlock
+            artwork={unlockArtwork}
+            description={unlocking.description}
+            name={unlocking.name}
+            onDone={() => setUnlocking(null)}
+          />
+        )}
+      </Modal>
     </ScrollView>
   );
 }

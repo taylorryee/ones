@@ -2,6 +2,7 @@ import type { CarouselCard } from '@/components/CardCarousel';
 import { PlayPanel } from '@/components/PlayPanel';
 import { BadgesPopupContent } from '@/components/cards/BadgesPopupContent';
 import { BiblePopupContent } from '@/components/cards/BiblePopupContent';
+import { QrCard } from '@/components/cards/QrCard';
 import { StatsCard } from '@/components/cards/StatsCard';
 import { TextCard } from '@/components/cards/TextCard';
 import type { UserProfile } from '@/services/auth';
@@ -57,7 +58,7 @@ export function badgeWallCards(
     },
     {
       key: 'qr-code',
-      render: (size) => <TextCard size={size} title="QR code" />,
+      render: (size) => <QrCard qr={profile?.qr_code ?? null} size={size} />,
       popup: (size) => <PlayPanel knownProfile={profile} onOpenMatch={onOpenMatch} size={size} />,
     },
     {

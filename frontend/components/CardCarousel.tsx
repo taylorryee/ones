@@ -1,11 +1,17 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+} from "react";
+import { StyleSheet, View } from "react-native";
 import {
   GestureDetector,
   useCompetingGestures,
   usePanGesture,
   useTapGesture,
-} from 'react-native-gesture-handler';
+} from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -15,19 +21,22 @@ import Animated, {
   withSpring,
   withTiming,
   type SharedValue,
-} from 'react-native-reanimated';
-import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
+} from "react-native-reanimated";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 
-import { CardPopup } from '@/components/CardPopup';
-import { ROTATINGCARD_BORDER_INSET, RotatingcardBorder } from '@/components/RotatingcardBorder';
-import type { Size } from '@/components/skeleton';
+import { CardPopup, type PopupOrigin } from "@/components/CardPopup";
+import {
+  ROTATINGCARD_BORDER_INSET,
+  RotatingcardBorder,
+} from "@/components/RotatingcardBorder";
+import type { Size } from "@/components/skeleton";
 import {
   DRAG_SLOP,
   EDGE_STRETCH,
   releaseTarget,
   rubberBand,
   SNAP_SPRING,
-} from '@/components/swipePaging';
+} from "@/components/swipePaging";
 
 // One card in the carousel. `render` draws what goes inside the frame, at `size`: the space left
 // inside the line, the same for every card. A card can hold anything, including its own data
@@ -85,6 +94,10 @@ export function CardCarousel({
   // cut the snap short, however far behind the JS thread is.
   const held = useSharedValue(false);
   const count = cards.length;
+  // Where the card that opened the popup is in the window, so the popup can grow out of it and
+  // shrink back into it.
+  const frame = useRef<ComponentRef<typeof View>>(null);
+  const [origin, setOrigin] = useState<PopupOrigin | null>(null);
 
   const onSettled = () => setSettles((total) => total + 1);
 
@@ -92,7 +105,7 @@ export function CardCarousel({
   // the position and each swipe ending changes `settles`, either of which starts the next one.
   useEffect(() => {
     scheduleOnUI(() => {
-      'worklet';
+      "worklet";
       if (held.get()) {
         return;
       }
@@ -108,7 +121,10 @@ export function CardCarousel({
           CARD_INTERVAL - CARD_SLIDE_DURATION,
           withTiming(
             -next * pitch,
-            { duration: CARD_SLIDE_DURATION, easing: Easing.inOut(Easing.cubic) },
+            {
+              duration: CARD_SLIDE_DURATION,
+              easing: Easing.inOut(Easing.cubic),
+            },
             (finished) => {
               // Interrupted only by a drag, which settles the cards itself.
               if (finished) {
@@ -164,7 +180,8 @@ export function CardCarousel({
       );
       // Released while stretched, the cards spring straight back; the finger's speed would carry
       // them further out first.
-      const stretched = offset.get() < -forward * pitch || offset.get() > -back.get() * pitch;
+      const stretched =
+        offset.get() < -forward * pitch || offset.get() > -back.get() * pitch;
       // Set straight away rather than when the snap ends, so a swipe that starts while the card is
       // still sliding in moves on from it instead of landing back on the same card.
       committed.set(target);
@@ -185,11 +202,25 @@ export function CardCarousel({
     },
   });
 
-  function openSlot(slot: number) {
+  // `slotLeft` is where the slot's card starts inside the carousel, mid-slide or not.
+  function openSlot(slot: number, slotLeft: number) {
     const card = cards[((slot % count) + count) % count];
-    if (card.popup) {
-      onOpen(card.key);
+    if (!card.popup) {
+      return;
     }
+    const view = frame.current;
+    if (!view) {
+      onOpen(card.key);
+      return;
+    }
+    view.measureInWindow((x, y) => {
+      setOrigin({
+        x: x + slotLeft + inset + size.width / 2,
+        y: y + size.height / 2,
+        width: size.width,
+      });
+      onOpen(card.key);
+    });
   }
 
   // A native gesture rather than a Pressable, which can stay pressed through a swipe and open the
@@ -198,7 +229,8 @@ export function CardCarousel({
   const tap = useTapGesture({
     maxDistance: DRAG_SLOP,
     onActivate: (event) => {
-      scheduleOnRN(openSlot, Math.floor((event.x - offset.get()) / pitch));
+      const slot = Math.floor((event.x - offset.get()) / pitch);
+      scheduleOnRN(openSlot, slot, offset.get() + slot * pitch);
     },
   });
   const gesture = useCompetingGestures(pan, tap);
@@ -220,14 +252,29 @@ export function CardCarousel({
   return (
     <>
       <GestureDetector gesture={gesture}>
-        <View style={{ height: size.height, width: pitch }}>
+        <View
+          collapsable={false}
+          ref={frame}
+          style={{ height: size.height, width: pitch }}
+        >
           {shown.map((slot) => {
             const card = cards[((slot % count) + count) % count];
             return (
               // Keyed by slot, so the shown card stays mounted when a neighbour becomes current.
-              <CardSlot inset={inset} key={slot} offset={offset} pitch={pitch} slot={slot}>
+              <CardSlot
+                inset={inset}
+                key={slot}
+                offset={offset}
+                pitch={pitch}
+                slot={slot}
+              >
                 <RotatingcardBorder height={size.height} width={size.width} />
-                <View style={[styles.content, { left: INSET.left, top: INSET.top, ...content }]}>
+                <View
+                  style={[
+                    styles.content,
+                    { left: INSET.left, top: INSET.top, ...content },
+                  ]}
+                >
                   {card.render(content)}
                 </View>
               </CardSlot>
@@ -236,7 +283,7 @@ export function CardCarousel({
         </View>
       </GestureDetector>
       {/* Outside the carousel's view, so its sideways drags don't claim touches in the popup. */}
-      <CardPopup onClose={() => onOpen(null)} render={popup} />
+      <CardPopup onClose={() => onOpen(null)} origin={origin} render={popup} />
     </>
   );
 }
@@ -259,15 +306,19 @@ function CardSlot({
   const slide = useAnimatedStyle(() => ({
     transform: [{ translateX: offset.get() + slot * pitch }],
   }));
-  return <Animated.View style={[styles.card, { left: inset }, slide]}>{children}</Animated.View>;
+  return (
+    <Animated.View style={[styles.card, { left: inset }, slide]}>
+      {children}
+    </Animated.View>
+  );
 }
 
 const styles = StyleSheet.create({
   card: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
   },
   content: {
-    position: 'absolute',
+    position: "absolute",
   },
 });

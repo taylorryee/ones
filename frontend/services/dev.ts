@@ -23,3 +23,15 @@ export async function botSubmit(matchId: number, botWon: boolean) {
   await api.post(`/dev/test-match/${matchId}/bot-submit`, { bot_won: botWon });
 }
 
+
+// Dev only: every match you leave earns a badge, whatever the result, to test the reward
+// animation. Set to false to get back the real rule (only a first win over someone).
+export const ALWAYS_WIN_BADGE = __DEV__ && true;
+
+// Awards you a random badge through the real award code; it stays in your inventory.
+export async function awardTestBadge() {
+  const response = await api.post<{ player_sticker_id: number; outcome: 'unlocked' | 'leveled_up' }>(
+    '/dev/award-badge'
+  );
+  return response.data;
+}

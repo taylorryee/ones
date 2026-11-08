@@ -1,3 +1,4 @@
+import random
 import uuid
 
 from fastapi import HTTPException
@@ -8,6 +9,7 @@ from models.player import Player
 from models.sticker import PlayerSticker, Sticker
 from schemas.match import MatchCreate, MatchSubmit
 from services import match as match_service
+from services import sticker as sticker_service
 
 
 # A player with no password, so it can't log in. It only acts through the dev routes.
@@ -69,3 +71,15 @@ def bot_submit(db: Session, match_id: int, bot_won: bool):
         winner_id=bot.id if bot_won else opponent_id,
     )
     return match_service.submit_match_result(db, match_id, result, bot.id)
+
+
+# Gives the player a random archetype sticker through the real award code (a new one, or a
+# level on one they own), so the sticker reward animation can be tested after any match.
+def award_random_badge(db: Session, player: Player):
+    stickers = db.query(Sticker).filter(Sticker.slug.in_(sticker_service.ARCHETYPE_SLUGS)).all()
+    if not stickers:
+        raise HTTPException(status_code=404, detail="No archetype stickers to award")
+
+    owned, outcome = sticker_service.award_archetype_sticker(db, player.id, random.choice(stickers).id)
+    db.commit()
+    return {"player_sticker_id": owned.id, "outcome": outcome}

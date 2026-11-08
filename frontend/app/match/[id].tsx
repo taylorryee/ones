@@ -15,7 +15,7 @@ import { useContentInset, useContentSize } from '@/components/ScreenBorder';
 import { SEPARATOR_HEIGHT, SeparatingLine } from '@/components/SeparatingLine';
 import { FONT, INK, PAPER } from '@/constants/theme';
 import { getCurrentUser, type UserProfile } from '@/services/auth';
-import { botSubmit, getTestBotId } from '@/services/dev';
+import { ALWAYS_WIN_BADGE, awardTestBadge, botSubmit, getTestBotId } from '@/services/dev';
 import { goAfterMatch, HOME, markMatchPlayed } from '@/services/matchFlow';
 import { getActiveMatch, recordScore, startRematch } from '@/services/matches';
 
@@ -127,7 +127,7 @@ export default function MatchScreen() {
 
   // Goes on from a finished match to `next`, by way of the sticker screen when this player's
   // win unlocked or leveled up a sticker.
-  function continueTo(next: string) {
+  async function continueTo(next: string) {
     if (!match || !profile || continuedMatchIds.has(match.id)) return;
     continuedMatchIds.add(match.id);
 
@@ -136,17 +136,27 @@ export default function MatchScreen() {
       match.sticker_outcome != null &&
       match.awarded_player_sticker_id != null
     ) {
-      router.replace({
-        pathname: '/sticker-reward',
-        params: {
-          next,
-          outcome: match.sticker_outcome,
-          playerStickerId: String(match.awarded_player_sticker_id),
-        },
-      });
-    } else {
-      goAfterMatch(next);
+      showReward(next, match.sticker_outcome, match.awarded_player_sticker_id);
+      return;
     }
+
+    // Dev only: a badge whatever happened. Falls back to the normal path if dev routes are off.
+    if (ALWAYS_WIN_BADGE) {
+      try {
+        const badge = await awardTestBadge();
+        showReward(next, badge.outcome, badge.player_sticker_id);
+        return;
+      } catch {}
+    }
+
+    goAfterMatch(next);
+  }
+
+  function showReward(next: string, outcome: string, playerStickerId: number) {
+    router.replace({
+      pathname: '/sticker-reward',
+      params: { next, outcome, playerStickerId: String(playerStickerId) },
+    });
   }
 
   // When the opponent taps Rematch first, this phone follows them into the new match.

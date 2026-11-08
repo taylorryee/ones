@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PanResponder, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { BadgeShowcase } from '@/components/BadgeShowcase';
 import { getWallLayout, SIDE_PADDING } from '@/components/badgeWallLayout';
@@ -186,23 +186,6 @@ export default function BadgeWallScreen() {
     }, [fillPlayedDays]),
   );
 
-  // Vertical only, so it leaves the calendar's and the cards' sideways swipes alone. Off while a
-  // card's popup is open: touches in a Modal still reach this screen's responders, so scrolling
-  // the popup would otherwise open the play screen.
-  const swipeUpResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          openCard === null && Math.abs(gesture.dy) > Math.abs(gesture.dx) && gesture.dy < -10,
-        onPanResponderRelease: (_, gesture) => {
-          if (gesture.dy < -60) {
-            router.push('/play');
-          }
-        },
-      }),
-    [openCard],
-  );
-
   // "That's right" leaves the result as it is; a win that earned a sticker shows it. Dispute
   // takes the result back, so the Elo shown here is reloaded.
   async function answerResult(result: ResultToAnswer, agrees: boolean) {
@@ -269,7 +252,6 @@ export default function BadgeWallScreen() {
 
   return (
     <View
-      {...swipeUpResponder.panHandlers}
       style={[styles.screen, { paddingBottom: contentInset.bottom, paddingTop: contentInset.top }]}>
       <View
         style={{

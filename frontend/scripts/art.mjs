@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parsePath } from '../components/skeleton.ts';
+import { stickerFills } from '../components/stickerFill.ts';
 import { STROKE } from '../constants/theme.ts';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -84,7 +85,16 @@ function checkSvg(file, kind) {
       `${where}: drawn on ${width}×${height}; stickers should share a ${STICKER_CANVAS}×${STICKER_CANVAS} artboard`
     );
   }
-  if (kind === 'illustration' || kind === 'sticker') {
+  if (kind === 'sticker') {
+    // Kept as written, for drawings that need their lines in one Svg with something else, like
+    // the badge unlock's gradient (components/BadgeArt.tsx).
+    const strokes = (source.match(/<path\b[^>]*>/g) ?? []).map((tag) => attr(tag, 'd') ?? '');
+    if (strokes.length === 0 || strokes.includes('')) {
+      fail('a path has no path data');
+    }
+    return { ...art, strokes, fills: stickerFills(strokes, Math.max(art.width, art.height)) };
+  }
+  if (kind === 'illustration') {
     return art;
   }
 
@@ -176,6 +186,28 @@ function renderData(all) {
   lines.push('export const ART = {');
   for (const a of sized) {
     lines.push(`  ${camelCase(a.name)}: { width: ${a.width}, height: ${a.height} },`);
+  }
+  lines.push('};');
+  lines.push('');
+  lines.push('// Path data of every sticker, as written in the SVG, in the units of its ART viewBox.');
+  lines.push('export const STICKER_PATHS: Record<string, readonly string[]> = {');
+  for (const a of all.filter((art) => art.strokes)) {
+    lines.push(`  ${camelCase(a.name)}: [`);
+    for (const d of a.strokes) {
+      lines.push(`    ${JSON.stringify(d)},`);
+    }
+    lines.push('  ],');
+  }
+  lines.push('};');
+  lines.push('');
+  lines.push('// The closed shapes of each sticker\'s lines, for filling it (components/stickerFill.ts).');
+  lines.push('export const STICKER_FILLS: Record<string, readonly string[]> = {');
+  for (const a of all.filter((art) => art.strokes)) {
+    lines.push(`  ${camelCase(a.name)}: [`);
+    for (const d of a.fills) {
+      lines.push(`    ${JSON.stringify(d)},`);
+    }
+    lines.push('  ],');
   }
   lines.push('};');
   lines.push('');

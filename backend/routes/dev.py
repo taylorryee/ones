@@ -24,6 +24,11 @@ class BotSubmit(BaseModel):
     bot_won: bool
 
 
+class AwardedBadge(BaseModel):
+    player_sticker_id: int
+    outcome: str
+
+
 @router.get("/test-bot", response_model=TestBotRead)
 def get_test_bot(db: Session = Depends(get_db)):
     return service.get_test_bot(db)
@@ -47,3 +52,12 @@ def bot_scans_me(
 @router.post("/test-match/{match_id}/bot-submit", response_model=MatchRead)
 def bot_submit(match_id: int, body: BotSubmit, db: Session = Depends(get_db)):
     return service.bot_submit(db, match_id, body.bot_won)
+
+
+# Awards you a random badge whatever the result, so the reward animation can be tested.
+@router.post("/award-badge", response_model=AwardedBadge)
+def award_badge(
+    db: Session = Depends(get_db),
+    current_user: Player = Depends(get_current_user),
+):
+    return service.award_random_badge(db, current_user)

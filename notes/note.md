@@ -13,3 +13,5 @@ TODO:
 -Clash royale style badge sselectoin on the top of the badge wall
 Future:
 - Location badges, tournmant badges
+  
+TRACK DAYS HOOPED VS ELO???? https://chatgpt.com/share/6aef63cd-8068-83e8-9738-82cb4617efc6
